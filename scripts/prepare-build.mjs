@@ -23,12 +23,13 @@ function run(args) {
   }
 }
 
-// Global git installs run `prepare` from the cloned package, while npm installs
-// dependencies into the global prefix. Install dev dependencies into the clone
-// so `tsc` is available for the build. `--ignore-scripts` prevents recursion.
-const installedForBuild = !existsSync('node_modules/typescript');
+// npm prepares git dependencies in a temporary clone under its cache. When
+// installing globally, npm may run `prepare` there while dependencies live in
+// the global prefix, so install them locally first. `--ignore-scripts` avoids
+// triggering this prepare script recursively.
+const isGitClone = /[\\/]_cacache[\\/]tmp[\\/]git-clone/.test(process.cwd());
 
-if (installedForBuild) {
+if (!existsSync('node_modules/typescript')) {
   console.log('[prepare] TypeScript missing in the package tree; installing build dependencies');
   run([
     'install',
@@ -43,14 +44,15 @@ if (installedForBuild) {
 
 run(['run', 'build']);
 
-// During a global git install npm runs prepare in a temporary clone and then
-// packs that directory. Remove the temporary node_modules so they do not end
-// up inside the installed package (and break its dependency install).
-const isGlobalGitInstall =
-  process.env.npm_config_global === 'true' ||
-  /[\\/]_cacache[\\/]tmp[\\/]git-clone/.test(process.cwd());
-
-if (installedForBuild && isGlobalGitInstall) {
+// npm reifies the clone after `prepare`. Leaving this temporary node_modules in
+// place makes npm try to replace its own dependency tree, which fails on
+// Windows with EPERM/ENOTEMPTY. Remove it once the build output is ready.
+if (isGitClone) {
   console.log('[prepare] Removing temporary build dependencies');
-  rmSync('node_modules', { recursive: true, force: true });
+  rmSync('node_modules', {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 200,
+  });
 }
