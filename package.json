@@ -2,7 +2,7 @@
   "name": "mcp-web-hound",
   "version": "1.12.2",
   "description": "MCP Web Hound — unified web search, GitHub search, and GitLab search tools with caching, reranking, and rate limits",
-  "homepage": "https://github.com/ilgizar-valiullin/mcp-web-hound#readme",
+  "homepage": "https://github.com/alexeevdv77/mcp-web-hound#readme",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -44,7 +44,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ilgizar-valiullin/mcp-web-hound.git"
+    "url": "git+https://github.com/alexeevdv77/mcp-web-hound.git"
   },
   "engines": {
     "node": ">=20.0.0"

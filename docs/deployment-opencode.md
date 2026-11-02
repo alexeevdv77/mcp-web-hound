@@ -89,7 +89,7 @@ opencode mcp add web_search -- npx.cmd -y mcp-web-hound
 ## Alternative: Local Install
 
 ```bash
-git clone https://github.com/ilgizar-valiullin/mcp-web-hound.git
+git clone https://github.com/alexeevdv77/mcp-web-hound.git
 cd mcp-web-hound
 npm install
 npm run build

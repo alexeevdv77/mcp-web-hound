@@ -34,7 +34,7 @@ const SERVER_NAME = 'mcp-web-hound';
 const SERVER_VERSION = pkgVersion();
 
 function printHelp(): void {
-  const repoUrl = 'https://github.com/ilgizar-valiullin/mcp-web-hound';
+  const repoUrl = 'https://github.com/alexeevdv77/mcp-web-hound';
   const cwdEnv = resolve(process.cwd(), '.env');
   process.stdout.write(`
 mcp-web-hound v${SERVER_VERSION} — MCP search server for AI agents

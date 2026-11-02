@@ -3,7 +3,7 @@
 Unified MCP search server for AI agents: web search, GitHub search and GitLab search
 with caching, reranking and rate limits behind a few simple tools.
 
-- GitHub repository: <https://github.com/ilgizar-valiullin/mcp-web-hound>
+- GitHub repository: <https://github.com/alexeevdv77/mcp-web-hound>
 - npm package: <https://www.npmjs.com/package/mcp-web-hound>
 
 ## Docs

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ilgizar-valiullin.github.io/mcp-web-hound/sitemap.xml
+Sitemap: https://alexeevdv77.github.io/mcp-web-hound/sitemap.xml
