@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const isWindows = process.platform === 'win32';
@@ -26,7 +26,9 @@ function run(args) {
 // Global git installs run `prepare` from the cloned package, while npm installs
 // dependencies into the global prefix. Install dev dependencies into the clone
 // so `tsc` is available for the build. `--ignore-scripts` prevents recursion.
-if (!existsSync('node_modules/typescript')) {
+const installedForBuild = !existsSync('node_modules/typescript');
+
+if (installedForBuild) {
   console.log('[prepare] TypeScript missing in the package tree; installing build dependencies');
   run([
     'install',
@@ -40,3 +42,15 @@ if (!existsSync('node_modules/typescript')) {
 }
 
 run(['run', 'build']);
+
+// During a global git install npm runs prepare in a temporary clone and then
+// packs that directory. Remove the temporary node_modules so they do not end
+// up inside the installed package (and break its dependency install).
+const isGlobalGitInstall =
+  process.env.npm_config_global === 'true' ||
+  /[\\/]_cacache[\\/]tmp[\\/]git-clone/.test(process.cwd());
+
+if (installedForBuild && isGlobalGitInstall) {
+  console.log('[prepare] Removing temporary build dependencies');
+  rmSync('node_modules', { recursive: true, force: true });
+}
