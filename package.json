@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build",
+    "prepare": "node scripts/prepare-build.mjs",
     "prepublishOnly": "npm run build",
     "configure": "node dist/cli/configure.js",
     "export-logs": "node dist/cli/export-logs.js",
