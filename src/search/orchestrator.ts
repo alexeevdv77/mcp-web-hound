@@ -4,7 +4,7 @@ import { SessionStore } from '../limits/session-store.js';
 import { SqliteCache } from '../cache/sqlite.js';
 import { SemanticCache } from '../cache/semantic-cache.js';
 import { ProviderRouter } from './provider-router.js';
-import { processQuery } from './query-normalizer.js';
+import { generateCacheKey, processQuery } from './query-normalizer.js';
 import { rerankResults, deduplicateResults, normalizeUrl, MCP_VERSION, RERANKER_VERSION, SIGNALS_VERSION } from './reranker.js';
 import type { ScoredResult } from './reranker.js';
 import { EmbeddingService } from '../embeddings/embedding-service.js';
@@ -65,7 +65,21 @@ export class Orchestrator {
 
   async search(request: SearchRequest): Promise<SearchResponse> {
     const startTime = Date.now();
-    const { normalized, cacheKey } = processQuery(request.query, request.intent);
+    let { normalized, cacheKey } = processQuery(request.query, request.intent);
+
+    if (!normalized) {
+      const raw = request.query.trim();
+      if (raw) {
+        normalized = raw;
+        cacheKey = generateCacheKey(normalized, request.intent);
+        logger.warn(
+          { query: request.query },
+          'Query normalized to an empty string; falling back to raw query',
+        );
+      } else {
+        logger.warn({ query: request.query }, 'Query is empty after normalization');
+      }
+    }
 
     const requiresFreshness = this.classifier
       ? await this.classifier.classifyFreshness(request.query)
@@ -174,6 +188,7 @@ export class Orchestrator {
         intent: request.intent,
         freshness: requiresFreshness ? 'day' : 'any',
         max_results: 20,
+        rawQuery: request.query,
       }),
       new Promise<never>((_, reject) => {
         searchTimeout.onabort = () => reject(new Error(`Search timed out after ${config.SEARCH_TIMEOUT_MS}ms`));

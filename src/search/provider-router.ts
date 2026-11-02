@@ -110,7 +110,10 @@ export class ProviderRouter {
           logger.warn({ provider: provider.name }, 'Provider unhealthy, skipping');
           continue;
         }
-        logger.debug({ provider: provider.name, query }, 'Sequential search to provider');
+        logger.debug(
+          { provider: provider.name, query, raw: options.rawQuery ?? query },
+          'Sequential search to provider',
+        );
         const results = await provider.search(query, options);
         this.rateLimitStore.record(this.providerKey(provider));
         if (results && results.length > 0) {
@@ -151,7 +154,10 @@ export class ProviderRouter {
             logger.warn({ provider: provider.name }, 'Provider unhealthy, skipping');
             continue;
           }
-          logger.debug({ provider: provider.name, query }, 'Routing search to provider');
+          logger.debug(
+            { provider: provider.name, query, raw: options.rawQuery ?? query },
+            'Routing search to provider',
+          );
           const results = await provider.search(query, options);
           this.rateLimitStore.record(this.providerKey(provider));
           if (results && results.length > 0) {

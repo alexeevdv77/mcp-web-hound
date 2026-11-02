@@ -18,6 +18,18 @@ Results → save to both caches
 
 ## SQLite Exact Cache
 
+### Query Normalization and Cache Keys
+
+`cache_key = sha256(normalized_query + "|" + intent)`. Normalization is Unicode-aware:
+it applies NFC, lowercases, collapses whitespace and strips symbols, but preserves
+letters, numbers and combining marks from every script. This keeps Cyrillic, CJK,
+Arabic and other non-Latin queries distinct. Do not use the ASCII-only `\w` class for
+this step — it removes non-Latin text and collapses all such queries onto a single
+empty-string key.
+
+If normalization produces an empty string, the orchestrator falls back to the trimmed
+raw query (with a warning) instead of querying providers with an empty string.
+
 ### Database Schema
 
 ```sql

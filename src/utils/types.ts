@@ -58,6 +58,8 @@ export interface ProviderOptions {
   intent: string;
   freshness: string;
   max_results: number;
+  /** Original agent query, kept for diagnostics only (providers receive `query`). */
+  rawQuery?: string;
 }
 
 export interface ProviderResult {

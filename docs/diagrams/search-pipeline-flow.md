@@ -9,9 +9,13 @@ flowchart TD
     C --> D[Budget Manager: checkBudget]
     D -->|Exceeded| D_ERR["Return error: BUDGET_EXCEEDED"]
     D -->|OK| E[Query Normalizer]
-    E --> F["Generate cache_key + normalized query"]
+    E --> F["Unicode NFC + lowercase + cleanup<br/>Preserve all scripts (letters/numbers/marks)<br/>Generate cache_key + normalized query"]
+    F --> F_EMPTY{normalized empty?}
+    F_EMPTY -->|Yes| F_RAW["Fallback to trimmed raw query + warn"]
+    F_EMPTY -->|No| FC
+    F_RAW --> FC
 
-    F --> FC["NLI Zero-Shot(query, 4 labels) → intent"]
+    FC["NLI Zero-Shot(query, 4 labels) → intent"]
     FC --> INTENT_META["Extract language metadata for github intent"]
     INTENT_META --> FR["NLI(query, 1 freshness hypothesis) → requiresFreshness"]
     FR --> FF["intent ∈ {github, docs, news, web} | requiresFreshness ∈ {true, false}"]

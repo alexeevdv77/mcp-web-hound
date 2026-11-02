@@ -6,12 +6,19 @@ export interface NormalizedQuery {
 }
 
 export function normalizeQuery(raw: string): string {
-  return raw
+  if (typeof raw !== 'string') {
+    return '';
+  }
+
+  const normalized = raw
+    .normalize('NFC')
     .toLowerCase()
     .trim()
     .replace(/\s+/g, ' ')
-    .replace(/[^\w\s\-./:?=&]/g, '')
+    .replace(/[^\p{L}\p{N}\p{M}_\s\-./:?=&]/gu, '')
     .trim();
+
+  return normalized;
 }
 
 export function generateCacheKey(normalized: string, intent: string): string {

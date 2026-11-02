@@ -57,10 +57,21 @@ First gate. If the task budget is exceeded — immediate rejection without calli
 Normalizes agent queries for better cache hits and more consistent results.
 
 **Responsibilities:**
+- Unicode NFC normalization (so canonically equivalent strings share a cache key)
 - Lowercase conversion
 - Whitespace and special character cleanup
 - Abbreviation expansion (optional)
 - Stable cache key generation
+
+**Unicode policy:** normalization is script-agnostic. Letters, numbers and combining
+marks from any script are preserved (`\p{L}\p{N}\p{M}` with the `u` flag), so Cyrillic,
+CJK, Arabic and other non-Latin queries survive normalization. Only symbols without
+search value (emoji, `+`, `!`, etc.) are stripped. ASCII `\w` must not be used here:
+it matches `[A-Za-z0-9_]` only and silently turns non-Latin queries into empty strings.
+
+If normalization still produces an empty string (for example an emoji-only query), the
+orchestrator falls back to the trimmed raw query and logs a warning, so providers are
+never called with an empty query.
 
 ### 4. Semantic Cache (`src/cache/semantic-cache.ts`)
 

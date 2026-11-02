@@ -21,6 +21,30 @@ describe('normalizeQuery', () => {
   it('should handle empty string', () => {
     expect(normalizeQuery('')).toBe('');
   });
+
+  it('should preserve Cyrillic characters and lowercase them', () => {
+    expect(normalizeQuery('Какое сегодня число')).toBe('какое сегодня число');
+    expect(normalizeQuery('ПРИВЕТ, МИР!')).toBe('привет мир');
+  });
+
+  it('should preserve mixed-script queries', () => {
+    expect(normalizeQuery('Java последняя версия')).toBe('java последняя версия');
+    expect(normalizeQuery('腾讯 QQ')).toBe('腾讯 qq');
+  });
+
+  it('should normalize Unicode to NFC so equivalent strings share a cache key', () => {
+    const composed = 'caf\u00e9';
+    const decomposed = 'cafe\u0301';
+    expect(normalizeQuery(composed)).toBe(normalizeQuery(decomposed));
+    expect(generateCacheKey(normalizeQuery(composed), 'web')).toBe(
+      generateCacheKey(normalizeQuery(decomposed), 'web'),
+    );
+  });
+
+  it('should strip symbols that are not letters, numbers or marks', () => {
+    expect(normalizeQuery('🔥🔥')).toBe('');
+    expect(normalizeQuery('привет 🔥 мир')).toBe('привет  мир');
+  });
 });
 
 describe('generateCacheKey', () => {
