@@ -17,6 +17,24 @@ npm i -g mcp-web-hound
 mcp-web-hound --help
 ```
 
+## Quick Install (from Git)
+
+Installs from the GitHub repository and compiles `dist/` during `prepare`:
+
+```bash
+npm i -g github:alexeevdv77/mcp-web-hound
+
+# Windows + npm 11 workaround for npm's global git-dependency bug
+npm i -g github:alexeevdv77/mcp-web-hound --install-links=true
+```
+
+If you hit `EPERM`/`ENOTEMPTY` while npm prepares the temporary clone, use
+`--install-links=true` or persist it once:
+
+```bash
+npm config set install-links true
+```
+
 ## Quick Install (npx, zero-install fallback)
 
 No install needed — npx fetches and runs the latest version automatically

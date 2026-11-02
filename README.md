@@ -22,6 +22,13 @@ AI-generated issues will not be reviewed and will be closed immediately.
 npm i -g mcp-web-hound
 mcp-web-hound --help
 
+# Install straight from GitHub (prepare compiles dist/)
+npm i -g github:alexeevdv77/mcp-web-hound
+
+# Windows + npm 11: global Git installs need install-links while npm
+# prepares the temporary clone (avoids EPERM/ENOTEMPTY during reify).
+npm i -g github:alexeevdv77/mcp-web-hound --install-links=true
+
 # Fallback: npx, no install needed (extra ~90MB relay process)
 npx mcp-web-hound --help
 
@@ -29,6 +36,10 @@ npx mcp-web-hound --help
 # Edit it via:
 mcp-web-hound configure
 ```
+
+The GitHub install runs `prepare` and builds `dist/` automatically. If the
+plain `github:` install fails on Windows, keep `--install-links=true` or set it
+once with `npm config set install-links true`.
 
 ### Memory footprint (measured, Windows, Commit)
 
