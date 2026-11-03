@@ -16,15 +16,37 @@ interface TavilyResponse {
   query: string;
 }
 
+/** Stock Tavily origin, used when TAVILY_BASE_URL is empty or unset. */
+export const TAVILY_DEFAULT_BASE_URL = 'https://api.tavily.com';
+
+const SEARCH_PATH = '/search';
+
+/**
+ * Resolve the search endpoint from TAVILY_BASE_URL.
+ *
+ * The base is the origin of the API — or of a proxy in front of it. `/search` is
+ * appended, so both `https://worker.example.com` and
+ * `https://worker.example.com/search` are accepted and resolve to the same call.
+ * A trailing slash is ignored, an empty value falls back to the stock origin.
+ */
+export function tavilySearchUrl(base: string | undefined): string {
+  const trimmed = (base?.trim() || TAVILY_DEFAULT_BASE_URL).replace(/\/+$/, '');
+  return trimmed.endsWith(SEARCH_PATH) ? trimmed : `${trimmed}${SEARCH_PATH}`;
+}
+
 export class TavilyProvider extends BaseProvider {
   readonly name = 'Tavily';
   readonly tier = 2 as const;
+
+  /** Fully resolved search endpoint, exposed so diagnostics can show where traffic goes. */
+  readonly searchUrl: string;
 
   private apiKey: string;
 
   constructor() {
     super();
     this.apiKey = config.TAVILY_API_KEY ?? '';
+    this.searchUrl = tavilySearchUrl(config.TAVILY_BASE_URL);
   }
 
   async doSearch(query: string, options: ProviderOptions): Promise<ProviderResult[]> {
@@ -32,9 +54,9 @@ export class TavilyProvider extends BaseProvider {
       throw new Error('Tavily API key not configured');
     }
 
-    logger.debug({ query }, 'Tavily request');
+    logger.debug({ query, endpoint: this.searchUrl }, 'Tavily request');
 
-    const response = await fetch('https://api.tavily.com/search', {
+    const response = await fetch(this.searchUrl, {
       method: 'POST',
       signal: AbortSignal.timeout(15000),
       headers: {

@@ -27,6 +27,7 @@
     "test:coverage": "vitest run --coverage",
     "test:providers": "vitest run tests/integration/",
     "test:bing": "tsx scripts/test-bing.ts",
+    "test:tavily": "tsx scripts/test-tavily.ts",
     "test:all": "vitest run tests/ tests/integration/",
     "lint": "eslint src/",
     "clean": "rimraf dist"

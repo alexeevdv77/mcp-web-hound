@@ -261,6 +261,7 @@ export interface Config {
   BRAVE_DAILY_LIMIT: number;
   TAVILY_API_KEY?: string;
   TAVILY_DAILY_LIMIT: number;
+  TAVILY_BASE_URL: string;
   EXA_API_KEY?: string;
   FIRECRAWL_API_KEY?: string;
   GITHUB_TOKEN?: string;
@@ -340,6 +341,13 @@ export const FIELD_DEFS: FieldDef[] = [
   { key: 'BRAVE_DAILY_LIMIT', kind: 'number', default: 60, description: 'Max Brave Search API queries per day' },
   { key: 'TAVILY_API_KEY', kind: 'optional-string', default: undefined, description: 'API key for Tavily Search (1000 queries/month free)' },
   { key: 'TAVILY_DAILY_LIMIT', kind: 'number', default: 30, description: 'Max Tavily queries per day' },
+  {
+    key: 'TAVILY_BASE_URL',
+    kind: 'string',
+    default: 'https://api.tavily.com',
+    description:
+      'Tavily endpoint origin. Point it at a proxy you control (in front of Tavily) when api.tavily.com is blocked; /search is appended unless the path already ends with /search',
+  },
   { key: 'EXA_API_KEY', kind: 'optional-string', default: undefined, description: 'API key for Exa Search (trial 1000 queries)' },
   { key: 'FIRECRAWL_API_KEY', kind: 'optional-string', default: undefined, description: 'API key for Firecrawl (trial 500 credits)' },
   { key: 'GITHUB_TOKEN', kind: 'optional-string', default: undefined, description: 'GitHub personal access token (optional, 60 req/hr without)' },
