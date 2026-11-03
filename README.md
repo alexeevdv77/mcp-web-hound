@@ -95,6 +95,8 @@ Use `npx mcp-web-hound configure` to set API keys. Startpage, DDG, Brave Web, an
 | Exa | `EXA_API_KEY` | 3 | Trial |
 | Firecrawl | `FIRECRAWL_API_KEY` | 3 | Trial |
 
+Bing answers through one of two channels, chosen by `BING_FETCH_MODE`: `http` (plain scraping) or `browser` (the query typed into Bing in a headless Chrome — better SERPs for query strings that scraping gets a "fallback" page for, needs Chrome/Edge on the host). A `.env` created on first run picks `browser` when Chrome is installed, `http` otherwise. Details in [docs/providers.md](docs/providers.md).
+
 ## Tools
 
 | Tool | Purpose |
@@ -171,7 +173,7 @@ Core pipeline: `Budget Check → Normalize → Classify (intent + freshness) →
 | Startpage | Google mirror (scrape) | No | 1 | — | 1s | incremental backoff |
 | DDG | HTML scrape | No | 1 | 10 req/min | 1s | captcha → 24h |
 | Brave Web | HTML scrape | No | 1 | — | 1s | 1min→5min→15min→1h→4h→24h |
-| Bing | HTML scrape | No | 1 | — | 1s | — |
+| Bing | HTML scrape or headless Chrome search (config switch) | No | 1 | — | 1s | — |
 | Brave API | Official API | Yes | 2 | 2000/month | — | — |
 | Tavily | Official API | Yes | 2 | 1000/month | — | — |
 | Exa | Official API | Yes | 3 | trial 1000 | — | — |

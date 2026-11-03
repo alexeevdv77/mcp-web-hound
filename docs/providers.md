@@ -88,24 +88,64 @@ BRAVE_WEB_ENABLED=true
 
 | Parameter | Value |
 |-----------|-------|
-| Type | HTML scraping |
-| API | GET `bing.com/search` |
+| Type | HTML scraping **or** headless-Chrome search (config switch) |
+| API | GET `bing.com/search` — or a query typed into Bing in Chrome |
 | Limits | Implicit (IP-based) |
 | Key | Not required |
 | Intents | web |
 
+**Two fetch channels — `BING_FETCH_MODE`:**
+
+| Value | Behaviour |
+|-------|-----------|
+| `http` (shipped default) | Paged scraping of `/search?q=` with a warmed cookie session. Fast (~0.2 s), no dependencies. |
+| `browser` | One search typed into Bing's search box in a headless Chrome (CDP over `ws`): Chrome user-agent without the `HeadlessChrome` token, dedicated profile directory, reused process, idle shutdown. ~2 s, needs Chrome/Edge on the host. |
+
+The channels are independent — the provider never switches from one to the other while answering a query. When the server `.env` is created on first run, it is written with `browser` if a Chrome/Edge binary is detected on that machine, and `http` otherwise.
+
+**Why the browser channel exists:** live experiments (2026-11) showed Bing answers some query strings with a "fallback" page from *every* client — the trigger is the `HeadlessChrome` user-agent token plus the absence of a real form submit. Typing the query into the box in a Chrome with a normal UA returns live results where `GET /search?q=` returns the fallback page.
+
 **Features:**
 - Free, no registration
+- Query sent verbatim (UTF-8 percent-encoded) — works for any language, no transliteration
+- `Accept-Language` derived from the languages actually present in the query, with an English fallback (`последняя версия npm` → `ru-RU,ru;q=0.9,en-US,en;q=0.6`)
+- No forced market params: `mkt`/`setlang`/`cc` are mutually exclusive per Bing docs and forcing them produced junk or "no results" SERPs for non-English queries
+- `http` channel bootstraps a browser-like cookie session once per worker (cookie-less Bing answers with a contentless "degraded" SERP)
 - Parses `b_algo` blocks from HTML results page
 - Different index from DDG — expands coverage
-- 1s delay between requests
+- 1s between requests via slot reservation, so parallel tool calls don't fire simultaneously (that burst is what triggers contentless SERPs)
 
-> **⚠️ Undocumented limits.** Bing does not publish scraping limits. May return captcha under high request frequency. Most stable among scraped providers.
+**Response checks — structural only:**
+
+| Situation | Handling |
+|-----------|----------|
+| HTTP status ≠ 200 | provider error → the router moves to the next provider |
+| captcha / blocking page | provider error → Bing gets suspended per the rate-limit policy |
+| no organic blocks (`b_no` notice, or a "degraded" page without `b_algo`) | empty result set → Bing steps aside, Startpage/DDG/Brave answer |
+| a page carries fewer results than requested | pagination stops, earlier pages are kept |
+| HTML layout changed (no `b_results`/`b_algo`/`b_no` at all) | provider error, so the change is visible instead of silent |
+
+**What is deliberately *not* done:** the SERP is not scored for relevance. Text-overlap heuristics misjudge too many legitimate result sets (they reject good pages and accept plausible junk). If Bing answers a query badly, the other providers in the same merge compensate — the merged answer is reranked anyway.
+
+> **⚠️ Undocumented limits.** Bing does not publish scraping limits. May return captcha under high request frequency. Quality is IP- and query-dependent: some query strings get a "fallback" SERP from any client, which is what the `browser` channel is for. Startpage/DDG stay in the chain and the merge is reranked.
 
 **Configuration:**
 ```env
 BING_ENABLED=true
+BING_USE_COOKIES=true          # http channel: bootstrap a cookie session (recommended)
+# BING_ACCEPT_LANGUAGE=...     # override the query-derived header
+# BING_MARKET=ru-RU            # force a single market code (never combined with setlang/cc)
+
+BING_FETCH_MODE=http           # http | browser (first run writes browser when Chrome is found)
+
+# BING_BROWSER_PATH=...        # Chrome/Edge binary (auto-detected by default)
+# BING_BROWSER_PROFILE_DIR=... # default: <config dir>/bing-chrome-profile
+BING_BROWSER_HEADLESS=true     # false = visible window, useful for debugging
+BING_BROWSER_TIMEOUT_MS=20000
+BING_BROWSER_IDLE_MS=300000
 ```
+
+Diagnostics: `npm run test:bing` prints the channel, every request and every fetched page with its verdict and latency — see [testing.md](testing.md).
 
 ---
 
@@ -141,12 +181,16 @@ BRAVE_DAILY_LIMIT=60
 - Built specifically for AI agents
 - Returns `content` (extracted text) out of the box
 - Works well for docs intent
+- Endpoint is configurable: `TAVILY_BASE_URL` routes the call through a proxy when the stock host is blocked
 
 **Configuration:**
 ```env
 TAVILY_API_KEY=tvly-...
 TAVILY_DAILY_LIMIT=30
+TAVILY_BASE_URL=https://api.tavily.com
 ```
+
+**Endpoint override:** `TAVILY_BASE_URL` is the origin of the API or of a proxy in front of it. `/search` is appended automatically, so `https://proxy.example.com` and `https://proxy.example.com/search` both work; a trailing slash is ignored and an empty value falls back to `https://api.tavily.com`. The provider authenticates with `api_key` inside the JSON body (as before), so the proxy only has to forward the POST body — `npm run test:tavily` prints which endpoint was used and what came back. This matters in practice: on 2026-11-03 `api.tavily.com/search` returned `403 Forbidden` from our own network while the same key, sent through a proxy we run ourselves, returned `200` with results.
 
 ---
 
