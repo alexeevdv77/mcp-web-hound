@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseConfig, type Config, type ProviderLimits } from './types.js';
 import { CONFIG_DIR, DATA_DIR, ENV_PATH } from './env-path.js';
+import { applyDetectedBingMode } from './bootstrap-env.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,7 +18,7 @@ if (!existsSync(ENV_PATH)) {
   try {
     const defaultEnv = resolve(SERVER_ROOT, 'default.env');
     if (existsSync(defaultEnv)) {
-      writeFileSync(ENV_PATH, readFileSync(defaultEnv, 'utf-8'), 'utf-8');
+      writeFileSync(ENV_PATH, applyDetectedBingMode(readFileSync(defaultEnv, 'utf-8')), 'utf-8');
     }
   } catch {
     // default.env missing or write failed — will fall back to configure tool

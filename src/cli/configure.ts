@@ -53,6 +53,12 @@ const SECTIONS: Section[] = [
     match: k => ['DDG_ENABLED', 'BING_ENABLED', 'STARTPAGE_ENABLED', 'BRAVE_WEB_ENABLED'].includes(k),
   },
   {
+    key: 'bing',
+    label: 'Bing',
+    description: 'Bing scraping: cookies, locale, fetch strategy, browser mode',
+    match: k => k.startsWith('BING_') && !/(_RPM|_RPD|_RPMONTH)$/.test(k),
+  },
+  {
     key: 'api_keys',
     label: 'API Keys',
     description: 'Premium provider credentials and daily query limits',
@@ -120,6 +126,7 @@ function fieldTypeOf(kind: string): { fieldType: FieldType; enumValues?: string[
   if (kind === 'number') return { fieldType: 'number' };
   if (kind === 'loglevel') return { fieldType: 'enum', enumValues: ['debug', 'info', 'warn', 'error'] };
   if (kind === 'execmode') return { fieldType: 'enum', enumValues: ['parallel', 'sequential'] };
+  if (kind === 'fetchmode') return { fieldType: 'enum', enumValues: ['http', 'browser'] };
   return { fieldType: 'string' };
 }
 

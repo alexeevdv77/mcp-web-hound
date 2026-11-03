@@ -70,6 +70,46 @@ describe.concurrent('Provider Integration Tests', () => {
       testProvider('results', () => new BingProvider());
     });
   });
+  integration('Bing (live, multilingual)', () => {
+    // These queries used to come back as junk because the provider forced
+    // mkt=en-US&setlang=en-US&cc=US. What is asserted here is the request
+    // contract, not the quality of the answer: the query leaves verbatim, the
+    // locale travels only in Accept-Language, and Bing either answers or steps
+    // aside with an empty page. Whether the SERP is actually about the queried
+    // subject is deliberately not judged — Startpage/DDG/Brave compensate in the
+    // same merge. http channel only: the browser channel talks to Bing through
+    // Chrome, so there is no request to inspect.
+    (config.BING_FETCH_MODE === 'http' ? describe : describe.skip)('request shape', () => {
+      const localeCases = [
+        { label: 'russian', query: 'последняя версия npm', accept: /^ru/ },
+        { label: 'russian commercial', query: 'Сколько стоит солярка', accept: /^ru/ },
+        { label: 'japanese', query: 'npm 最新バージョン', accept: /^ja/ },
+      ];
+      for (const localeCase of localeCases) {
+        it(`sends a ${localeCase.label} query verbatim with a matching Accept-Language`, { timeout: TIMEOUT }, async () => {
+          const requests: Array<{ url: string; headers: Record<string, string> }> = [];
+          const realFetch = globalThis.fetch;
+          vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+            requests.push({ url: String(input), headers: (init?.headers ?? {}) as Record<string, string> });
+            return realFetch(input as RequestInfo, init);
+          });
+
+          try {
+            const p = new BingProvider();
+            const results = await p.search(localeCase.query, OPTIONS);
+
+            const search = requests.find((r) => r.url.includes('/search'));
+            expect(search).toBeDefined();
+            expect(new URL(search!.url).searchParams.get('q')).toBe(localeCase.query);
+            expect(search!.headers['Accept-Language']).toMatch(localeCase.accept);
+            console.log(`  Bing ${localeCase.label}: ${results.length} results`);
+          } finally {
+            vi.unstubAllGlobals();
+          }
+        });
+      }
+    });
+  });
   integration('Brave Web (live)', () => {
     (config.BRAVE_WEB_ENABLED ? describe : describe.skip)('results', () => {
       testProvider('results', () => new BraveWebProvider());
