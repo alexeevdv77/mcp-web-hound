@@ -102,8 +102,8 @@ BRAVE_WEB_ENABLED=true
 - Free, no registration
 - Query sent verbatim (UTF-8 percent-encoded) — works for any language, no transliteration
 - `Accept-Language` derived from the languages actually present in the query, with an English fallback (`последняя версия npm` → `ru-RU,ru;q=0.9,en-US,en;q=0.6`)
-- No forced market params: `mkt`/`setlang`/`cc` are mutually exclusive per Bing docs and forcing them produced junk or "no results" SERPs for non-English queries
-- Bootstraps a browser-like cookie session once per worker (cookie-less Bing answers with a contentless "degraded" SERP)
+- No forced market params: `mkt`/`setlang`/`cc` are mutually exclusive per Bing docs and forcing them produced junk or "no results" SERPs for non-English queries. Re-measured 2026-11-04 against the fix upstream SearXNG shipped for this engine ([PR #6671](https://github.com/searxng/searxng/pull/6671): `mkt` → `setlang=` + `cc=`, `us|cn|ru` skipped, `Accept-Language` override dropped): from this IP no combination changes the result set, and `cc=by|de` / `mkt=de-DE|kk-KZ` return zero results — see the Bing bullets in `docs/roadmap.md`
+- Bootstraps a browser-like cookie session once per worker (cookie-less Bing has been seen answering with a contentless "degraded" SERP; not every time — cookie-less probes on 2026-11-04 returned full 113 KB pages with 10 `b_algo` blocks, whose content was still the usual cold-query filler)
 - Parses `b_algo` blocks from HTML results page
 - Different index from DDG — expands coverage
 - 1s between requests via slot reservation, so parallel tool calls don't fire simultaneously (that burst is what triggers contentless SERPs)
