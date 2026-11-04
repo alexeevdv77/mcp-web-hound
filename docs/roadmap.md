@@ -100,6 +100,18 @@ Production-ready MCP Search Server with 6 providers, GitHub/GitLab search, confi
 
 ## V4 — Stability & Local Search (In Progress)
 
+### Status snapshot — 2026-11-04
+
+- **Branches.** `master` ships the scraping channels only (Startpage, DDG, Brave Web, Bing). `bing-browser-mode` is 3 commits ahead with the unshipped headless-Chrome Bing channel (see the parked entry below). Nothing is pushed: `master` is 6 commits ahead of `origin/master`, the branch 3. The published npm package is `1.12.3` while the fork is `1.12.2`, so `npm update -g` silently replaces a local build — bump to `2.0.0` before any publish.
+- **Upstream.** Upstream is at `8a3a9a7` (1.12.3) and not merged; the fork's provider set and config surface differ from it.
+- **Bing.** The structural channel works, the content does not for cold query strings (S2). Independently confirmed engine-side on 2026-11-04: another client asking Bing from its own IP received the same filler for the same query, while its Google-backed results were correct. No provider-level fix planned.
+- **Reranker.** The NLI model has never been downloaded in the local install, so `nli` is a constant `0.5` and the final order is merge order (S3, details there).
+- **Open questions** (nothing below is decided yet):
+  1. Does a *never-searched* string also return filler in a normal desktop browser on this IP? Decides "Bing-wide behaviour" vs "a separate bot tier". The string must be fresh — a re-test on a cached string proves nothing.
+  2. Which relevance defence to build: the S2 cross-engine domain gate, actually loading the NLI model, or both. Today a junk block reaches the answer.
+  3. Fork housekeeping: merge upstream 1.12.3, bump to 2.0.0, decide whether/when to push.
+  4. `bing-browser-mode`: ship or keep parked; if shipped, the fail-fast verdict for a contentless page is still missing.
+
 ### Priority Tasks
 
 - [ ] **More web providers** — increase the number of scraped/API providers for better stability and fallback coverage. Current scraping providers (Startpage, DDG, Brave Web, Bing) are all undocumented and fragile.
