@@ -23,22 +23,19 @@ npm run test:all
 
 Pushes one real query through `BingProvider` and prints everything needed to debug a bad SERP:
 
-- config in effect (fetch channel, cookies / market / `Accept-Language`, or Chrome availability and flags)
+- config in effect (cookies / market / `Accept-Language`)
 - every HTTP request (URL, `Accept-Language`, cookie names, SERP markers: `b_algo` count, `b_no`, captcha hint)
-- the **fetch log** — one row per page: `[http|browser] p1 usable results=10 HTTP 200 197ms`, plus the reason when the page was empty
+- the **fetch log** — one row per page: `[http] p1 usable results=10 HTTP 200 197ms`, plus the reason when the page was empty
 - the results exactly as Bing returned them — the script does not score relevance, it shows what is there
 
 It runs on `src/` via `tsx`, so edits to `src/search/providers/*.ts` take effect without a build.
 
 ```bash
-npm run test:bing                                  # default query, http channel
+npm run test:bing                                  # default query
 npm run test:bing -- Сколько стоит солярка         # any query, any language
 
 # experiment without touching code
-BING_FETCH_MODE=browser npm run test:bing          # headless Chrome, query typed into the box
-BING_BROWSER_HEADLESS=false npm run test:bing      # watch Chrome work in a real window
-BING_BROWSER_PATH=/path/to/chrome npm run test:bing
-BING_USE_COOKIES=false npm run test:bing           # cookie-less vs warmed session (http channel)
+BING_USE_COOKIES=false npm run test:bing           # cookie-less vs warmed session
 BING_MARKET=de-DE npm run test:bing                # force a market param
 BING_ACCEPT_LANGUAGE=ru-RU npm run test:bing       # override the derived header
 BING_RESULTS_PER_PAGE=30 BING_TEST_MAX=30 npm run test:bing
@@ -48,18 +45,18 @@ LOG_LEVEL=info npm run test:bing                   # quieter than the default de
 PowerShell equivalent (and the safe way to pass non-ASCII text if your console mangles it):
 
 ```powershell
-$env:BING_TEST_QUERY='Сколько стоит солярка'; $env:BING_FETCH_MODE='browser'; npm run test:bing
+$env:BING_TEST_QUERY='Сколько стоит солярка'; npm run test:bing
 ```
 
 Reading the fetch log:
 
 | Column | Meaning |
 |--------|---------|
-| `[http]` / `[browser]` | fetch channel (browser = typed search in headless Chrome) |
-| `p1`, `p2`, … | page within this search (`http` channel walks pagination, `browser` does one search) |
+| `[http]` | fetch channel — scraping of `/search?q=` |
+| `p1`, `p2`, … | page within this search (the channel walks pagination) |
 | `usable` | the page carried organic `b_algo` blocks — results were returned |
 | `empty` | contentless page (`degraded SERP (no organic blocks)`) or Bing reported no results |
-| `error` | the fetch itself failed (browser launch, timeout) — shown as a provider error |
+| `error` | the fetch itself failed (HTTP status, captcha) — shown as a provider error |
 
 ## Test Structure
 
@@ -68,8 +65,7 @@ tests/
 ├── search/
 │   ├── providers/
 │   │   ├── duckduckgo.test.ts   — DDG HTML scrape parsing
-│   │   ├── bing.test.ts         — Bing parse + both fetch channels (http / browser), mocked
-│   │   ├── bing-browser.test.ts — Chrome flags/discovery + full typed-search flow over a mocked CDP
+│   │   ├── bing.test.ts         — Bing parse + response verdicts, mocked
 │   │   ├── brave.test.ts        — Brave Search API (mocked)
 │   │   ├── tavily.test.ts       — Tavily API (mocked)
 │   │   ├── exa.test.ts          — Exa API (mocked)
@@ -94,17 +90,10 @@ tests/
 │   └── fetch-retry.test.ts
 ├── utils/
 │   ├── types.test.ts            — parseConfig / FIELD_DEFS validation
-│   ├── config-help.test.ts
-│   ├── chrome-path.test.ts      — Chrome/Edge binary discovery
-│   └── bootstrap-env.test.ts    — first-run .env (Bing channel picked per machine)
+│   └── config-help.test.ts
 └── integration/
     └── providers.integration.test.ts — Live API smoke tests
 ```
-
-> **The browser channel is tested against a fake Chrome, not a real one.** `bing-browser.ts` drives Chrome over CDP;
-> the unit suite mocks `ws` and `spawn`, so it covers the whole typed-search flow (launch → navigate → `Input.insertText`
-> → Enter → results → HTML) and the timeout/cleanup path without starting a browser. Real Chrome behaviour — the
-> consent overlay, real timings — is checked with `BING_FETCH_MODE=browser npm run test:bing`.
 
 ## Coverage
 

@@ -6,17 +6,11 @@
  *   $env:BING_TEST_QUERY='Сколько стоит солярка'; npm run test:bing   # if the shell mangles Cyrillic
  *
  * Experiment knobs (env, no code edits needed):
- *   BING_FETCH_MODE=http|browser    which channel to use (browser = headless Chrome, typed query)
- *   BING_BROWSER_HEADLESS=false     watch Chrome work (visible window)
- *   BING_BROWSER_PATH=...           explicit Chrome/Edge binary
- *   BING_BROWSER_PROFILE_DIR=...    isolated profile (default: <config dir>/bing-chrome-profile)
- *   BING_BROWSER_TIMEOUT_MS=20000   per-search browser timeout
- *   BING_BROWSER_IDLE_MS=300000     close Chrome after this much idle time
- *   BING_USE_COOKIES=false          compare cookie-less vs warmed session (http channel)
+ *   BING_USE_COOKIES=false          compare cookie-less vs warmed session
  *   BING_MARKET=ru-RU               force a market param
  *   BING_ACCEPT_LANGUAGE=...        override the query-derived header
  *   BING_RESULTS_PER_PAGE=30        page size
- *   BING_MAX_PAGES=3                pages to scrape (http channel)
+ *   BING_MAX_PAGES=3                pages to scrape
  *   BING_TEST_MAX=20                max_results for this run
  *   LOG_LEVEL=debug|info            (default debug here)
  *
@@ -54,27 +48,16 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 }) as typeof fetch;
 
 const { BingProvider } = await import('../src/search/providers/bing.js');
-const { browserUnavailableReason, closeBrowser, isBrowserAvailable, resolveChromePath } = await import(
-  '../src/search/providers/bing-browser.js'
-);
 const { config } = await import('../src/utils/config.js');
 
 const provider = new BingProvider();
 
 console.log('\n=== Bing provider check ===');
 console.log(`query            : ${query}`);
-console.log(`channel          : ${provider.fetchMode}`);
+console.log(`channel          : http (scraping)`);
 console.log(`maxResults       : ${maxResults} | perPage=${config.BING_RESULTS_PER_PAGE} | maxPages=${config.BING_MAX_PAGES}`);
-
-if (provider.fetchMode === 'browser') {
-  console.log(
-    `browser          : ${isBrowserAvailable() ? `ready (${resolveChromePath()})` : `unavailable (${browserUnavailableReason()})`}` +
-      ` | headless=${config.BING_BROWSER_HEADLESS} | timeout=${config.BING_BROWSER_TIMEOUT_MS}ms`,
-  );
-} else {
-  console.log(`cookies          : ${config.BING_USE_COOKIES ? 'on' : 'off'} | market=${config.BING_MARKET || '(none)'}`);
-  console.log(`Accept-Language  : ${config.BING_ACCEPT_LANGUAGE || '(derived from query)'}`);
-}
+console.log(`cookies          : ${config.BING_USE_COOKIES ? 'on' : 'off'} | market=${config.BING_MARKET || '(none)'}`);
+console.log(`Accept-Language  : ${config.BING_ACCEPT_LANGUAGE || '(derived from query)'}`);
 
 const started = Date.now();
 let error: string | null = null;
@@ -84,9 +67,6 @@ try {
   results = await provider.doSearch(query, { intent: 'web', freshness: 'any', max_results: maxResults });
 } catch (err) {
   error = err instanceof Error ? err.message : String(err);
-} finally {
-  // The shared Chrome process keeps the event loop alive — always shut it down.
-  await closeBrowser();
 }
 
 if (captured.length > 0) {

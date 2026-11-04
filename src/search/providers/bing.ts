@@ -3,7 +3,6 @@ import { ProviderOptions, ProviderResult } from '../../utils/types.js';
 import { config } from '../../utils/config.js';
 import { logger } from '../../utils/logger.js';
 import { buildAcceptLanguage } from '../query-locale.js';
-import { BrowserUnavailableError, fetchSerpViaBrowser } from './bing-browser.js';
 
 const BING_SEARCH_URL = 'https://www.bing.com/search';
 const BING_HOME_URL = 'https://www.bing.com/';
@@ -59,12 +58,11 @@ function collectCookies(response: Response): void {
   }
 }
 
-export type BingFetchMode = 'http' | 'browser';
 export type BingAttemptVerdict = 'usable' | 'empty' | 'error';
 
 /** One fetch performed by the last `doSearch`, kept for diagnostics (`npm run test:bing`). */
 export interface BingAttempt {
-  mode: BingFetchMode;
+  mode: 'http';
   page: number;
   status?: number;
   results: number;
@@ -74,13 +72,13 @@ export interface BingAttempt {
 }
 
 /**
- * Bing provider with two independent fetch channels, chosen by
- * `BING_FETCH_MODE` — there is no switching between them per query:
+ * Bing provider — plain scraping of `/search?q=` with a warmed cookie session.
  *
- * - `http`    — plain scraping of `/search?q=` with a warmed cookie session.
- * - `browser` — the query typed into Bing's search box in a headless Chrome
- *               (see `bing-browser.ts`), which is what unlocks a live SERP for
- *               query strings that the HTTP channel cannot resolve.
+ * A second channel (query typed into Bing in headless Chrome over CDP) lives on
+ * the `bing-browser-mode` branch: as measured on 2026-11-04, any UA override
+ * that hides the `HeadlessChrome` token also switches off Chrome's Client Hints,
+ * and Bing then answers with a page that has no results container at all. That
+ * channel is parked there until it is fixed; the HTTP channel stays here.
  *
  * The response is only checked structurally: HTTP status, captcha/blocking
  * page, and whether the page carries any organic result blocks at all. Whether
@@ -104,18 +102,11 @@ export class BingProvider extends BaseProvider {
     this.maxPages = config.BING_MAX_PAGES;
   }
 
-  get fetchMode(): BingFetchMode {
-    return config.BING_FETCH_MODE === 'browser' ? 'browser' : 'http';
-  }
-
   async doSearch(query: string, options: ProviderOptions): Promise<ProviderResult[]> {
     this.attempts.length = 0;
 
     await throttle();
 
-    if (this.fetchMode === 'browser') {
-      return this.searchViaBrowser(query, options);
-    }
     return this.searchViaHttp(query, options);
   }
 
@@ -170,41 +161,6 @@ export class BingProvider extends BaseProvider {
     }
 
     return allResults;
-  }
-
-  /** One typed search in the shared headless Chrome. No pagination. */
-  private async searchViaBrowser(query: string, options: ProviderOptions): Promise<ProviderResult[]> {
-    const started = Date.now();
-
-    try {
-      const html = await fetchSerpViaBrowser(query, {
-        timeoutMs: Math.max(3000, config.BING_BROWSER_TIMEOUT_MS),
-      });
-      const results = this.parseResults(html, Math.max(1, options.max_results));
-      const verdict: BingAttemptVerdict = results.length > 0 ? 'usable' : 'empty';
-
-      this.attempts.push({
-        mode: 'browser',
-        page: 1,
-        results: results.length,
-        verdict,
-        reason: verdict === 'empty' ? this.describeEmpty(html) : undefined,
-        ms: Date.now() - started,
-      });
-
-      return results;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.attempts.push({ mode: 'browser', page: 1, results: 0, verdict: 'error', reason: message, ms: Date.now() - started });
-
-      if (err instanceof BrowserUnavailableError) {
-        throw new Error(
-          `Bing browser mode is configured but the browser is unusable: ${message}. ` +
-            'Set BING_BROWSER_PATH to a Chrome/Edge binary, or switch BING_FETCH_MODE back to http.',
-        );
-      }
-      throw new Error(`Bing browser search failed: ${message}`);
-    }
   }
 
   /**

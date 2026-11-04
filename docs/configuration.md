@@ -63,7 +63,7 @@ All settings via `.env` file or environment variables.
 |----------|---------|-------------|
 | `BRAVE_WEB_ENABLED` | `true` | Enable Brave Web scrape |
 
-### Bing (Tier 1 — scrape or headless Chrome, free)
+### Bing (Tier 1 — scraping, free)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -73,12 +73,6 @@ All settings via `.env` file or environment variables.
 | `BING_USE_COOKIES` | `true` | Bootstrap a browser-like cookie session (stabilizes multilingual SERPs) |
 | `BING_ACCEPT_LANGUAGE` | query-derived | Override the `Accept-Language` header sent to Bing |
 | `BING_MARKET` | *(unset)* | Force a market code (e.g. `ru-RU`). Unset = no market param |
-| `BING_FETCH_MODE` | `http` | Fetch channel: `http` = scraping, `browser` = query typed into Bing in headless Chrome. First run writes `browser` when Chrome/Edge is detected |
-| `BING_BROWSER_PATH` | auto-detect | Path to the Chrome/Edge binary used for browser mode |
-| `BING_BROWSER_PROFILE_DIR` | `<config dir>/bing-chrome-profile` | Isolated Chrome profile (Bing cookies only) |
-| `BING_BROWSER_HEADLESS` | `true` | Run browser mode headless; `false` opens a visible window for debugging |
-| `BING_BROWSER_TIMEOUT_MS` | `20000` | Timeout for one browser search (ms) |
-| `BING_BROWSER_IDLE_MS` | `300000` | Close the Chrome process after this much idle time (ms) |
 
 ### Brave API (Tier 2 — API key)
 

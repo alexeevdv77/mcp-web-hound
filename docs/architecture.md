@@ -112,7 +112,7 @@ Adapters for specific search engines. All implement the `SearchProvider` interfa
 | Startpage | HTML scrape (Google mirror) | No | 1 |
 | DuckDuckGo | HTML scrape | No | 1 |
 | Brave Web | HTML scrape | No | 1 |
-| Bing | HTML scrape or headless Chrome search (config switch) | No | 1 |
+| Bing | HTML scrape | No | 1 |
 | Brave API | Official API | Yes (free: 2000/mo) | 2 |
 | Tavily | Official API | Yes (free: 1000/mo) | 2 |
 | Exa | Official API | Yes (trial: 1000) | 3 |

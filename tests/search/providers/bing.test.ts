@@ -2,21 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vite
 import { BingProvider } from '../../../src/search/providers/bing.js';
 import { ProviderOptions } from '../../../src/utils/types.js';
 
-const browserMock = vi.hoisted(() => ({
-  fetchSerpViaBrowser: vi.fn(),
-  BrowserUnavailableError: class BrowserUnavailableError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = 'BrowserUnavailableError';
-    }
-  },
-}));
-
-vi.mock('../../../src/search/providers/bing-browser.js', () => ({
-  BrowserUnavailableError: browserMock.BrowserUnavailableError,
-  fetchSerpViaBrowser: (query: string, options?: unknown) => browserMock.fetchSerpViaBrowser(query, options),
-}));
-
 beforeAll(() => {
   process.env.TZ = 'UTC';
 });
@@ -56,12 +41,6 @@ vi.mock('../../../src/utils/config.js', () => ({
     BING_USE_COOKIES: true,
     BING_ACCEPT_LANGUAGE: undefined,
     BING_MARKET: undefined,
-    BING_FETCH_MODE: 'http',
-    BING_BROWSER_PATH: undefined,
-    BING_BROWSER_PROFILE_DIR: undefined,
-    BING_BROWSER_HEADLESS: true,
-    BING_BROWSER_TIMEOUT_MS: 20000,
-    BING_BROWSER_IDLE_MS: 300000,
   },
 }));
 
@@ -175,7 +154,6 @@ describe('BingProvider http channel (mocked fetch)', () => {
     vi.resetModules();
     calls = [];
     let searchIndex = 0;
-    browserMock.fetchSerpViaBrowser.mockReset();
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { headers?: Record<string, string> }) => {
       calls.push({ url, headers: init?.headers ?? {} });
       if (url === 'https://www.bing.com/') {
@@ -186,7 +164,6 @@ describe('BingProvider http channel (mocked fetch)', () => {
 
     ({ config: configMock } = await import('../../../src/utils/config.js'));
     configSnapshot = { ...configMock };
-    configMock.BING_FETCH_MODE = 'http';
     tuneConfig?.(configMock);
 
     const mod = await import('../../../src/search/providers/bing.js');
@@ -211,12 +188,12 @@ describe('BingProvider http channel (mocked fetch)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('uses the http channel and never touches the browser', async () => {
+  it('makes a single HTTP search request per page', async () => {
     await setup(() => responseOf(npmRuHtml));
 
-    expect(provider.fetchMode).toBe('http');
     await provider.doSearch('последняя версия npm', dummyOptions);
-    expect(browserMock.fetchSerpViaBrowser).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(1);
+    expect(provider.attempts[0]).toMatchObject({ mode: 'http', page: 1, verdict: 'usable' });
   });
 
   it('sends the query verbatim with no forced market params', async () => {
@@ -340,70 +317,5 @@ describe('BingProvider http channel (mocked fetch)', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429, statusText: 'Too Many Requests' }) as unknown as Response));
     const mod = await import('../../../src/search/providers/bing.js');
     await expect(new mod.BingProvider().doSearch('anything', dummyOptions)).rejects.toThrow('Bing returned 429');
-  });
-});
-
-describe('BingProvider browser channel (mocked browser)', () => {
-  let provider: any;
-  let configMock: any;
-
-  async function setup() {
-    vi.resetModules();
-    browserMock.fetchSerpViaBrowser.mockReset();
-
-    ({ config: configMock } = await import('../../../src/utils/config.js'));
-    configMock.BING_FETCH_MODE = 'browser';
-
-    const mod = await import('../../../src/search/providers/bing.js');
-    provider = new mod.BingProvider();
-    return configMock;
-  }
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('uses the browser only — no HTTP search request is made', async () => {
-    await setup();
-    browserMock.fetchSerpViaBrowser.mockResolvedValue(sampleHtml);
-
-    const fetchSpy = vi.fn(async () => {
-      throw new Error('HTTP search must not be used in browser channel');
-    });
-    vi.stubGlobal('fetch', fetchSpy);
-
-    const results = await provider.doSearch('react hooks version', dummyOptions);
-
-    expect(browserMock.fetchSerpViaBrowser).toHaveBeenCalledTimes(1);
-    expect(browserMock.fetchSerpViaBrowser.mock.calls[0][0]).toBe('react hooks version');
-    expect(results).toHaveLength(3);
-    expect(provider.attempts[0]).toMatchObject({ mode: 'browser', page: 1, verdict: 'usable', results: 3 });
-  });
-
-  it('reports an empty SERP as empty instead of retrying', async () => {
-    await setup();
-    browserMock.fetchSerpViaBrowser.mockResolvedValue(noResultsHtml);
-
-    const results = await provider.doSearch('react hooks version', dummyOptions);
-
-    expect(results).toEqual([]);
-    expect(browserMock.fetchSerpViaBrowser).toHaveBeenCalledTimes(1);
-    expect(provider.attempts[0]).toMatchObject({ mode: 'browser', verdict: 'empty' });
-  });
-
-  it('explains a missing Chrome/Edge binary in the error', async () => {
-    await setup();
-    browserMock.fetchSerpViaBrowser.mockRejectedValue(new browserMock.BrowserUnavailableError('Chrome/Edge binary not found'));
-
-    await expect(provider.doSearch('react hooks version', dummyOptions)).rejects.toThrow(/BING_BROWSER_PATH/);
-    expect(provider.attempts[0]).toMatchObject({ mode: 'browser', verdict: 'error' });
-  });
-
-  it('surfaces browser failures as provider errors', async () => {
-    await setup();
-    browserMock.fetchSerpViaBrowser.mockRejectedValue(new Error('Chrome exploded'));
-
-    await expect(provider.doSearch('react hooks version', dummyOptions)).rejects.toThrow('Bing browser search failed');
-    expect(provider.attempts[0].reason).toContain('Chrome exploded');
   });
 });

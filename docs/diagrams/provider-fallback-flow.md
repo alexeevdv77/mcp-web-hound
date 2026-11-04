@@ -62,14 +62,12 @@ flowchart TD
     H -- No --> C
 ```
 
-## Bing scraped SERP — two independent fetch channels
+## Bing scraped SERP — fetch flow
 
 ```mermaid
 flowchart TD
     A[BingProvider.doSearch] --> B[throttle: reserve next 1s slot]
-    B --> C{BING_FETCH_MODE}
-
-    C -- http --> D[GET bing.com once, fill cookie jar MUID / _EDGE_*]
+    B --> D[GET bing.com once, fill cookie jar MUID / _EDGE_*]
     D --> E[GET /search: q verbatim UTF-8, count, Cookie header]
     E --> F[parseResults: collect b_algo blocks]
     F -. captcha, blocking page or layout change .-> X[throw provider error]
@@ -79,18 +77,7 @@ flowchart TD
     H -- yes --> E
     H -- no --> Z[return results]
 
-    C -- browser --> I{Chrome/Edge binary found?}
-    I -- no --> W[throw: set BING_BROWSER_PATH or switch back to http]
-    I -- yes --> J[headless Chrome: UA override, query typed into the search box, Enter]
-    J --> K[read the page HTML]
-    K --> F2[parseResults: collect b_algo blocks]
-    F2 -. captcha or layout change .-> X
-    F2 --> L{organic blocks on the page?}
-    L -- no --> Y
-    L -- yes --> Z
-
     X --> M[router moves to the next provider]
-    W --> M
     Y --> M
 ```
 
@@ -100,17 +87,19 @@ removed — Bing's fallback page is structurally perfect and always carries a co
 word-match rule accepts junk, while distinctive-word rules rejected legitimate results. A badly answering
 Bing is compensated by Startpage/DDG/Brave in the same merge, which is reranked anyway.
 
-**Why two channels instead of a chain.** Switching channel per query made behaviour unpredictable (the
-same query took a different path depending on one heuristic). `http` and `browser` are now separate
-implementations selected in config; the first-run `.env` writes `browser` when a Chrome/Edge is installed
-on that machine, `http` otherwise.
+**Why scraping only, and where the Chrome channel went.** A headless-Chrome channel (query typed into the
+search box over CDP) is kept on the `bing-browser-mode` branch instead of shipping. Measured 2026-11-04 on
+the same machine and profile, one query per config:
 
-**Why the browser channel exists.** Live experiments showed the trigger for Bing's fallback page is the
-`HeadlessChrome` UA token plus the absence of a real form submit: with the token replaced and the query
-typed into Bing's box, a headless Chrome returns the same live SERP as a visible window, while
-`GET /search?q=` still returns the fallback. The browser runs detached from the user's profile (own
-`--user-data-dir`), is reused across searches, serialised through a queue, and killed after
-`BING_BROWSER_IDLE_MS`.
+| client | `Sec-CH-UA*` on the `/search` request | Bing answer |
+|--------|----------------------------------------|-------------|
+| honest headless UA (`HeadlessChrome/131`) | present | 10 relevant organic results |
+| UA hidden via CDP `setUserAgentOverride` | **absent** (the override switches Client Hints off) | no results container at all, `ak_bmsc` bot cookie set |
+| UA hidden via `--user-agent` flag (hints intact) | present | no results container at all |
+
+So the deciding signal is not the `HeadlessChrome` token — it is the client claiming a desktop Chrome it does
+not behave like. A parked channel is cheaper than a provider that spends 20 s timing out on a page that can
+never satisfy the wait condition.
 
 Why each step exists: cookie-less Bing answers bot traffic with a "degraded" SERP (200, a real result
 container, no organic items); simultaneous hits from parallel tool calls trigger the same contentless

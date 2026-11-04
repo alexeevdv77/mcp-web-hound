@@ -241,7 +241,7 @@ export interface SearchLogEntry {
 // The single source for all configuration (zero-dependency).
 // FIELD_DEFS drives parsing, docs, configure-TUI and status help.
 
-export type FieldKind = 'string' | 'boolean' | 'number' | 'optional-string' | 'loglevel' | 'execmode' | 'fetchmode';
+export type FieldKind = 'string' | 'boolean' | 'number' | 'optional-string' | 'loglevel' | 'execmode';
 
 export interface FieldDef {
   key: string;
@@ -298,12 +298,6 @@ export interface Config {
   BING_ACCEPT_LANGUAGE: string | undefined;
   BING_MARKET: string | undefined;
   BING_USE_COOKIES: boolean;
-  BING_FETCH_MODE: 'http' | 'browser';
-  BING_BROWSER_PATH?: string;
-  BING_BROWSER_PROFILE_DIR?: string;
-  BING_BROWSER_HEADLESS: boolean;
-  BING_BROWSER_TIMEOUT_MS: number;
-  BING_BROWSER_IDLE_MS: number;
   DDG_RPM: number;
   DDG_RPD: number;
   DDG_RPMONTH: number;
@@ -384,12 +378,6 @@ export const FIELD_DEFS: FieldDef[] = [
   { key: 'BING_ACCEPT_LANGUAGE', kind: 'optional-string', default: undefined, description: 'Override Bing Accept-Language (default: derived from query languages)' },
   { key: 'BING_MARKET', kind: 'optional-string', default: undefined, description: 'Force Bing market code (e.g. ru-RU). Empty = no market param' },
   { key: 'BING_USE_COOKIES', kind: 'boolean', default: true, description: 'Bootstrap a Bing cookie session before scraping (improves multilingual relevance)' },
-  { key: 'BING_FETCH_MODE', kind: 'fetchmode', default: 'http', description: 'Bing fetch channel: http = plain scraping, browser = search typed in headless Chrome (first-run .env picks browser when Chrome is installed)' },
-  { key: 'BING_BROWSER_PATH', kind: 'optional-string', default: undefined, description: 'Path to Chrome/Edge binary for browser fetch mode (default: auto-detect)' },
-  { key: 'BING_BROWSER_PROFILE_DIR', kind: 'optional-string', default: undefined, description: 'Chrome profile directory for browser fetch mode (default: <config dir>/bing-chrome-profile)' },
-  { key: 'BING_BROWSER_HEADLESS', kind: 'boolean', default: true, description: 'Run the Bing browser headless (false = visible window, useful for debugging)' },
-  { key: 'BING_BROWSER_TIMEOUT_MS', kind: 'number', default: 20000, description: 'Timeout for a single browser search in milliseconds' },
-  { key: 'BING_BROWSER_IDLE_MS', kind: 'number', default: 300000, description: 'Close the browser process after this much idle time in milliseconds' },
   { key: 'DDG_RPM', kind: 'number', default: 10, description: 'DuckDuckGo max requests per minute' },
   { key: 'DDG_RPD', kind: 'number', default: 200, description: 'DuckDuckGo max requests per day' },
   { key: 'DDG_RPMONTH', kind: 'number', default: 6000, description: 'DuckDuckGo max requests per month' },
@@ -453,12 +441,6 @@ export function parseConfig(input: Record<string, unknown>): Config {
       case 'execmode':
         if (raw !== 'parallel' && raw !== 'sequential') {
           throw new Error(`Invalid PROVIDER_EXECUTION_MODE: ${String(raw)}`);
-        }
-        out[def.key] = raw;
-        break;
-      case 'fetchmode':
-        if (raw !== 'http' && raw !== 'browser') {
-          throw new Error(`Invalid BING_FETCH_MODE: ${String(raw)} (expected http or browser)`);
         }
         out[def.key] = raw;
         break;

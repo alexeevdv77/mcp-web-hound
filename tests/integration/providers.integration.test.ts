@@ -77,9 +77,8 @@ describe.concurrent('Provider Integration Tests', () => {
     // locale travels only in Accept-Language, and Bing either answers or steps
     // aside with an empty page. Whether the SERP is actually about the queried
     // subject is deliberately not judged — Startpage/DDG/Brave compensate in the
-    // same merge. http channel only: the browser channel talks to Bing through
-    // Chrome, so there is no request to inspect.
-    (config.BING_FETCH_MODE === 'http' ? describe : describe.skip)('request shape', () => {
+    // same merge.
+    describe('request shape', () => {
       const localeCases = [
         { label: 'russian', query: 'последняя версия npm', accept: /^ru/ },
         { label: 'russian commercial', query: 'Сколько стоит солярка', accept: /^ru/ },
