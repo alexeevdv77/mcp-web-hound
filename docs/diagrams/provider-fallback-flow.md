@@ -101,8 +101,9 @@ So the deciding signal is not the `HeadlessChrome` token — it is the client cl
 not behave like. A parked channel is cheaper than a provider that spends 20 s timing out on a page that can
 never satisfy the wait condition.
 
-Why each step exists: cookie-less Bing answers bot traffic with a "degraded" SERP (200, a real result
-container, no organic items); simultaneous hits from parallel tool calls trigger the same contentless
-page; forced `mkt=en-US&setlang=en-US&cc=US` returned identical junk for **every** language, and
-`mkt=de-DE`/`ja-JP`/`zh-CN` returned literal "no results" pages. So the query goes out verbatim, locale
-is expressed only through `Accept-Language`, and market params are opt-in.
+Why each step exists: Bing can answer bot traffic with a "degraded" SERP (200, a real result container,
+no organic items) — that is the page the parked browser channel hits when the UA lies. The HTTP scraper
+does not produce it: 16 never-asked cold queries on 2026-11-05, cookie-less and header-minimal, all came
+back with 10 `b_algo` blocks. Forced `mkt=en-US&setlang=en-US&cc=US` returned identical junk for **every**
+language, and `mkt=de-DE`/`ja-JP`/`zh-CN` returned literal "no results" pages, which is why the market
+params are gone (2026-11-05) and the query goes out with nothing but `q`/`count`/`first`.

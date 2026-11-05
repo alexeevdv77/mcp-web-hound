@@ -95,7 +95,7 @@ Use `npx mcp-web-hound configure` to set API keys. Startpage, DDG, Brave Web, an
 | Exa | `EXA_API_KEY` | 3 | Trial |
 | Firecrawl | `FIRECRAWL_API_KEY` | 3 | Trial |
 
-Bing answers through scraping of `/search?q=` with a warmed cookie session. A headless-Chrome channel (query typed into Bing's box) is parked on the `bing-browser-mode` branch — see [docs/providers.md](docs/providers.md) for why it is not shipped.
+Bing answers through plain scraping of `/search?q=` — no cookie session, no locale overrides, no market params. A headless-Chrome channel (query typed into Bing's box) is parked on the `bing-browser-mode` branch — see [docs/providers.md](docs/providers.md) for why it is not shipped.
 
 ## Tools
 

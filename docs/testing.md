@@ -35,9 +35,6 @@ npm run test:bing                                  # default query
 npm run test:bing -- Сколько стоит солярка         # any query, any language
 
 # experiment without touching code
-BING_USE_COOKIES=false npm run test:bing           # cookie-less vs warmed session
-BING_MARKET=de-DE npm run test:bing                # force a market param
-BING_ACCEPT_LANGUAGE=ru-RU npm run test:bing       # override the derived header
 BING_RESULTS_PER_PAGE=30 BING_TEST_MAX=30 npm run test:bing
 LOG_LEVEL=info npm run test:bing                   # quieter than the default debug
 ```
@@ -73,7 +70,6 @@ tests/
 │   ├── orchestrator.test.ts     — Full search pipeline
 │   ├── provider-router.test.ts  — Parallel fallback logic
 │   ├── provider-registry.test.ts
-│   ├── query-locale.test.ts     — Accept-Language derived from the query script
 │   ├── reranker.test.ts         — Domain/freshness/position scoring
 │   ├── query-normalizer.test.ts — Cache key generation
 │   ├── intent-classifier.test.ts

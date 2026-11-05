@@ -38,9 +38,6 @@ vi.mock('../../../src/utils/config.js', () => ({
     RERANK_ENABLED: true,
     BING_RESULTS_PER_PAGE: 10,
     BING_MAX_PAGES: 1,
-    BING_USE_COOKIES: true,
-    BING_ACCEPT_LANGUAGE: undefined,
-    BING_MARKET: undefined,
   },
 }));
 
@@ -71,7 +68,7 @@ const junkRuHtml = `<ol id="b_results">
   <li class="b_algo"><h2><a href="https://bing.com/ck/a">Министерства Республики Марий Эл</a></h2><cite>https://mari-el.gov.ru › ministries</cite><div class="b_caption"><p>Приемная, структура, контакты</p></div></li>
 </ol>`;
 
-/** 200 + result container but no organic blocks and no notice — cookie-less bot SERP */
+/** 200 + result container but no organic blocks and no notice — a bot-facing page */
 const degradedHtml = '<ol id="b_results"><li class="b_pag"><a href="/search?first=11">Next</a></li></ol>';
 
 /** Bing's own "no results" page (seen with mkt=de-DE in live tests) */
@@ -79,15 +76,12 @@ const noResultsHtml = '<ol id="b_results"><li class="b_no">Es gibt keine Ergebni
 
 const captchaHtml = '<html><body><div class="g-captcha">Please verify that you are not a robot</div></body></html>';
 
-function responseOf(body: string, setCookies: string[] = []) {
+function responseOf(body: string) {
   return {
     ok: true,
     status: 200,
     statusText: 'OK',
-    headers: {
-      get: (name: string) => (name.toLowerCase() === 'set-cookie' ? setCookies[0] ?? null : null),
-      getSetCookie: () => setCookies,
-    },
+    headers: { get: () => null },
     text: async () => body,
   } as unknown as Response;
 }
@@ -156,9 +150,6 @@ describe('BingProvider http channel (mocked fetch)', () => {
     let searchIndex = 0;
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { headers?: Record<string, string> }) => {
       calls.push({ url, headers: init?.headers ?? {} });
-      if (url === 'https://www.bing.com/') {
-        return responseOf('<html><body>home</body></html>', ['MUID=ABC123=; domain=.bing.com; path=/']);
-      }
       return searchResponder(url, searchIndex++);
     }));
 
@@ -188,10 +179,11 @@ describe('BingProvider http channel (mocked fetch)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('makes a single HTTP search request per page', async () => {
+  it('makes a single HTTP search request per page — no cookie warm-up, no retries', async () => {
     await setup(() => responseOf(npmRuHtml));
 
     await provider.doSearch('последняя версия npm', dummyOptions);
+    expect(calls).toHaveLength(1);
     expect(searchCalls()).toHaveLength(1);
     expect(provider.attempts[0]).toMatchObject({ mode: 'http', page: 1, verdict: 'usable' });
   });
@@ -209,46 +201,16 @@ describe('BingProvider http channel (mocked fetch)', () => {
     expect(params.has('hl')).toBe(false);
   });
 
-  it('aligns Accept-Language with the query languages and keeps an English fallback', async () => {
+  it('sends the same browser-like headers for any query language', async () => {
     await setup(() => responseOf(npmRuHtml));
     await provider.doSearch('последняя версия npm', dummyOptions);
-    expect(searchCalls()[0].headers['Accept-Language']).toBe('ru-RU,ru;q=0.9,en-US,en;q=0.6');
-
     await provider.doSearch('npm 最新バージョン', dummyOptions);
-    expect(searchCalls()[1].headers['Accept-Language']).toBe('ja-JP,ja;q=0.9,en-US,en;q=0.6');
-  });
 
-  it('honours BING_ACCEPT_LANGUAGE and BING_MARKET overrides', async () => {
-    const config = await setup(() => responseOf(npmRuHtml));
-    config.BING_ACCEPT_LANGUAGE = 'de-DE,de;q=0.9';
-    config.BING_MARKET = 'de-DE';
-
-    await provider.doSearch('neueste version npm', dummyOptions);
-
-    const params = new URL(searchCall().url).searchParams;
-    expect(params.get('mkt')).toBe('de-DE');
-    expect(params.has('setlang')).toBe(false);
-    expect(params.has('cc')).toBe(false);
-    expect(searchCall().headers['Accept-Language']).toBe('de-DE,de;q=0.9');
-  });
-
-  it('bootstraps a cookie session before scraping (cookie-less SERPs are degraded)', async () => {
-    await setup(() => responseOf(npmRuHtml));
-    const results = await provider.doSearch('последняя версия npm', dummyOptions);
-
-    expect(calls[0].url).toBe('https://www.bing.com/');
-    expect(searchCall().headers.Cookie).toBe('MUID=ABC123=');
-    expect(results).toHaveLength(3);
-  });
-
-  it('stays cookie-less when BING_USE_COOKIES is disabled', async () => {
-    const config = await setup(() => responseOf(npmRuHtml));
-    config.BING_USE_COOKIES = false;
-
-    await provider.doSearch('последняя версия npm', dummyOptions);
-
-    expect(calls.map((c) => c.url)).toEqual([expect.stringContaining('/search')]);
-    expect(searchCall().headers.Cookie).toBeUndefined();
+    for (const call of searchCalls()) {
+      expect(call.headers['Accept-Language']).toBe('en-US,en;q=0.9');
+      expect(call.headers.Cookie).toBeUndefined();
+      expect(call.headers['User-Agent']).toContain('Chrome/131');
+    }
   });
 
   it('makes exactly one request per page — no retries, no reformulations', async () => {

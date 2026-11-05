@@ -94,16 +94,16 @@ BRAVE_WEB_ENABLED=true
 | Key | Not required |
 | Intents | web |
 
-**Channel:** paged scraping of `/search?q=` with a warmed cookie session. Fast (~0.2 s), no dependencies.
+**Channel:** paged scraping of `/search?q=` — the request carries `q`, `count` and `first` and nothing else, so there is no session state and no warm-up request. Fast (~0.2 s), no dependencies.
 
 > **Parked: the headless-Chrome channel.** A second channel that typed the query into Bing's search box over CDP lives on the `bing-browser-mode` branch and is not shipped. Measured on 2026-11-04: overriding the user-agent to hide the `HeadlessChrome` token also switches off Chrome's Client Hints, and the request then carries no `Sec-CH-UA*` at all — Bing answers that client with a page that has **no results container** (`b_results`, `b_algo`, `b_content` all absent) and sets the Akamai bot cookie `ak_bmsc`. Honest headless UA gets a normal SERP; any UA lie (CDP override or `--user-agent` flag) gets nothing. The channel stays on the branch until that is solved.
 
 **Features:**
 - Free, no registration
 - Query sent verbatim (UTF-8 percent-encoded) — works for any language, no transliteration
-- `Accept-Language` derived from the languages actually present in the query, with an English fallback (`последняя версия npm` → `ru-RU,ru;q=0.9,en-US,en;q=0.6`)
-- No forced market params: `mkt`/`setlang`/`cc` are mutually exclusive per Bing docs and forcing them produced junk or "no results" SERPs for non-English queries. Re-measured 2026-11-04 against the fix upstream SearXNG shipped for this engine ([PR #6671](https://github.com/searxng/searxng/pull/6671): `mkt` → `setlang=` + `cc=`, `us|cn|ru` skipped, `Accept-Language` override dropped): from this IP no combination changes the result set, and `cc=by|de` / `mkt=de-DE|kk-KZ` return zero results — see the Bing bullets in `docs/roadmap.md`
-- Bootstraps a browser-like cookie session once per worker (cookie-less Bing has been seen answering with a contentless "degraded" SERP; not every time — cookie-less probes on 2026-11-04 returned full 113 KB pages with 10 `b_algo` blocks, whose content was still the usual cold-query filler)
+- Headers are constant and browser-like (`Chrome/131` UA, `Accept-Language: en-US,en;q=0.9`). Measured 2026-11-05: deriving the header from the query languages, pinning `en-US` or omitting it entirely made no difference to the SERP
+- No market params (`mkt`/`setlang`/`cc`). Re-measured 2026-11-04 against the fix upstream SearXNG shipped for this engine ([PR #6671](https://github.com/searxng/searxng/pull/6671): `mkt` → `setlang=` + `cc=`, `us|cn|ru` skipped, `Accept-Language` override dropped): from this IP no combination changes the result set, and `cc=by|de` / `mkt=de-DE|kk-KZ` return zero results — see the Bing bullets in `docs/roadmap.md`
+- No cookie session. Measured 2026-11-05 on 16 never-asked cold queries: cookie-less scraping returned a full SERP with 10 `b_algo` blocks every time, so the former homepage warm-up was dropped (it cost one extra request and changed nothing)
 - Parses `b_algo` blocks from HTML results page
 - Different index from DDG — expands coverage
 - 1s between requests via slot reservation, so parallel tool calls don't fire simultaneously (that burst is what triggers contentless SERPs)
@@ -125,9 +125,6 @@ BRAVE_WEB_ENABLED=true
 **Configuration:**
 ```env
 BING_ENABLED=true
-BING_USE_COOKIES=true          # bootstrap a cookie session (recommended)
-# BING_ACCEPT_LANGUAGE=...     # override the query-derived header
-# BING_MARKET=ru-RU            # force a single market code (never combined with setlang/cc)
 ```
 
 Diagnostics: `npm run test:bing` prints every request and every fetched page with its verdict and latency — see [testing.md](testing.md).

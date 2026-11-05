@@ -70,9 +70,6 @@ All settings via `.env` file or environment variables.
 | `BING_ENABLED` | `true` | Enable Bing |
 | `BING_RESULTS_PER_PAGE` | `10` | Results per page |
 | `BING_MAX_PAGES` | `1` | Max pages to scrape |
-| `BING_USE_COOKIES` | `true` | Bootstrap a browser-like cookie session (stabilizes multilingual SERPs) |
-| `BING_ACCEPT_LANGUAGE` | query-derived | Override the `Accept-Language` header sent to Bing |
-| `BING_MARKET` | *(unset)* | Force a market code (e.g. `ru-RU`). Unset = no market param |
 
 ### Brave API (Tier 2 — API key)
 

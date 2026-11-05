@@ -6,9 +6,6 @@
  *   $env:BING_TEST_QUERY='Сколько стоит солярка'; npm run test:bing   # if the shell mangles Cyrillic
  *
  * Experiment knobs (env, no code edits needed):
- *   BING_USE_COOKIES=false          compare cookie-less vs warmed session
- *   BING_MARKET=ru-RU               force a market param
- *   BING_ACCEPT_LANGUAGE=...        override the query-derived header
  *   BING_RESULTS_PER_PAGE=30        page size
  *   BING_MAX_PAGES=3                pages to scrape
  *   BING_TEST_MAX=20                max_results for this run
@@ -56,8 +53,6 @@ console.log('\n=== Bing provider check ===');
 console.log(`query            : ${query}`);
 console.log(`channel          : http (scraping)`);
 console.log(`maxResults       : ${maxResults} | perPage=${config.BING_RESULTS_PER_PAGE} | maxPages=${config.BING_MAX_PAGES}`);
-console.log(`cookies          : ${config.BING_USE_COOKIES ? 'on' : 'off'} | market=${config.BING_MARKET || '(none)'}`);
-console.log(`Accept-Language  : ${config.BING_ACCEPT_LANGUAGE || '(derived from query)'}`);
 
 const started = Date.now();
 let error: string | null = null;

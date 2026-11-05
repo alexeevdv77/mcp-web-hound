@@ -2,11 +2,24 @@ import { BaseProvider } from './base-provider.js';
 import { ProviderOptions, ProviderResult } from '../../utils/types.js';
 import { config } from '../../utils/config.js';
 import { logger } from '../../utils/logger.js';
-import { buildAcceptLanguage } from '../query-locale.js';
 
 const BING_SEARCH_URL = 'https://www.bing.com/search';
-const BING_HOME_URL = 'https://www.bing.com/';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+/**
+ * Constant, browser-like headers.
+ *
+ * Measured 2026-11-05 on 16 never-asked cold queries: deriving `Accept-Language`
+ * from the query languages, pinning `en-US`, or omitting the header entirely
+ * made no difference — same filler, same 10 `b_algo` blocks every time. Bing
+ * ignores it for content selection here, so the header stays constant and the
+ * query-derived machinery is gone.
+ */
+const REQUEST_HEADERS: Record<string, string> = {
+  'User-Agent': DESKTOP_UA,
+  'Accept-Language': 'en-US,en;q=0.9',
+  Accept: 'text/html,application/xhtml+xml',
+};
 
 const MIN_REQUEST_INTERVAL_MS = 1000;
 const FETCH_TIMEOUT_MS = 10000;
@@ -18,8 +31,7 @@ let nextRequestSlotAt = 0;
  * Slot reservation, not a sleep-after-timestamp check. Concurrent searches
  * (parallel provider mode, several tool calls in one agent turn) each claim
  * the next slot before awaiting, so requests stay 1s apart instead of all
- * firing together — simultaneous hits are what makes Bing answer with a
- * degraded, contentless SERP.
+ * firing together.
  */
 async function throttle(): Promise<void> {
   const now = Date.now();
@@ -27,34 +39,6 @@ async function throttle(): Promise<void> {
   nextRequestSlotAt = slotAt + MIN_REQUEST_INTERVAL_MS;
   if (slotAt > now) {
     await new Promise(r => setTimeout(r, slotAt - now));
-  }
-}
-
-/**
- * Cookie jar shared by all Bing searches in this worker (HTTP channel only).
- *
- * Bing answers cookie-less scraping with a rotating "degraded" SERP: HTTP 200,
- * a normal-looking page frame, but an empty result list. A browser-like session
- * (MUID / _EDGE_* from the homepage) is what makes the SERP carry organic
- * results at all, and it is the only way to get stable multilingual results.
- */
-const cookieJar = new Map<string, string>();
-let cookieBootstrap: Promise<void> | null = null;
-
-function collectCookies(response: Response): void {
-  const getSetCookie = (response.headers as { getSetCookie?: () => string[] }).getSetCookie;
-  const single = response.headers.get('set-cookie');
-  const raw: string[] = typeof getSetCookie === 'function' ? getSetCookie.call(response.headers) : single ? [single] : [];
-
-  for (const line of raw) {
-    const pair = line.split(';')[0];
-    const eq = pair.indexOf('=');
-    if (eq <= 0) continue;
-    const name = pair.slice(0, eq).trim();
-    const value = pair.slice(eq + 1).trim();
-    if (name && value) {
-      cookieJar.set(name, value);
-    }
   }
 }
 
@@ -72,7 +56,13 @@ export interface BingAttempt {
 }
 
 /**
- * Bing provider — plain scraping of `/search?q=` with a warmed cookie session.
+ * Bing provider — plain scraping of `/search?q=`.
+ *
+ * The request is deliberately minimal: `q`, `count` and `first` and nothing
+ * else. Cookie sessions, an `Accept-Language` derived from the query and the
+ * `mkt`/`setlang`/`cc` market params were all measured and dropped (2026-11-05,
+ * see `docs/roadmap.md`): none of them changed the result set, and the market
+ * params either returned the same filler or zero results.
  *
  * A second channel (query typed into Bing in headless Chrome over CDP) lives on
  * the `bing-browser-mode` branch: as measured on 2026-11-04, any UA override
@@ -112,8 +102,6 @@ export class BingProvider extends BaseProvider {
 
   /** Paged scraping. Stops at the first page that carries no organic results. */
   private async searchViaHttp(query: string, options: ProviderOptions): Promise<ProviderResult[]> {
-    await this.ensureCookies();
-
     const allResults: ProviderResult[] = [];
     const needPages = Math.min(Math.ceil(options.max_results / this.resultsPerPage), this.maxPages);
 
@@ -125,7 +113,7 @@ export class BingProvider extends BaseProvider {
 
       const response = await fetch(url.toString(), {
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        headers: this.buildRequestHeaders(query),
+        headers: REQUEST_HEADERS,
       });
 
       if (!response.ok) {
@@ -166,12 +154,6 @@ export class BingProvider extends BaseProvider {
   /**
    * Query is sent verbatim (URLSearchParams does the UTF-8 percent-encoding) —
    * Bing reads the query fine in any script, transliterating it only hurts.
-   *
-   * Market params are deliberately NOT guessed from the query language: in
-   * live tests `mkt=de-DE` / `mkt=ja-JP` / `mkt=zh-CN` returned literal
-   * "no results" pages, and `mkt` + `setlang` + `cc` combined (invalid per
-   * Bing docs, they are mutually exclusive) returned junk for every language.
-   * Only an explicit operator override is honoured.
    */
   private buildSearchUrl(query: string, page: number): URL {
     const url = new URL(BING_SEARCH_URL);
@@ -180,68 +162,13 @@ export class BingProvider extends BaseProvider {
     if (page > 0) {
       url.searchParams.set('first', String(page * this.resultsPerPage + 1));
     }
-
-    const market = config.BING_MARKET?.trim();
-    if (market) {
-      url.searchParams.set('mkt', market);
-    }
-
     return url;
-  }
-
-  /** Accept-Language follows the languages actually present in the query. */
-  private buildRequestHeaders(query: string): Record<string, string> {
-    const acceptLanguage = config.BING_ACCEPT_LANGUAGE?.trim() || buildAcceptLanguage(query);
-    const headers: Record<string, string> = {
-      'User-Agent': DESKTOP_UA,
-      'Accept-Language': acceptLanguage,
-      Accept: 'text/html,application/xhtml+xml',
-    };
-
-    const cookie = this.cookieHeader();
-    if (cookie) {
-      headers.Cookie = cookie;
-    }
-
-    return headers;
-  }
-
-  private cookieHeader(): string {
-    return [...cookieJar.entries()].map(([name, value]) => `${name}=${value}`).join('; ');
-  }
-
-  private async ensureCookies(): Promise<void> {
-    if (config.BING_USE_COOKIES === false) {
-      return;
-    }
-    if (!cookieBootstrap) {
-      cookieBootstrap = this.bootstrapCookies().catch((err: unknown) => {
-        logger.debug({ err: String(err) }, 'Bing cookie bootstrap failed — continuing cookie-less');
-      });
-    }
-    await cookieBootstrap;
-  }
-
-  private async bootstrapCookies(): Promise<void> {
-    const response = await fetch(BING_HOME_URL, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      redirect: 'follow',
-      headers: {
-        'User-Agent': DESKTOP_UA,
-        Accept: 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
-
-    collectCookies(response);
-    await response.text();
-
-    logger.debug({ cookies: cookieJar.size }, 'Bing cookie session bootstrapped');
   }
 
   /**
    * 200 + a result list container but no organic items and no "no results"
-   * notice — the classic cookie-less degraded SERP.
+   * notice — a page Bing renders for bot traffic or when the layout shifts the
+   * items out of `b_algo`.
    */
   private looksDegraded(html: string): boolean {
     return /id="b_results"/i.test(html) && !/class="b_algo/i.test(html) && !/class="b_no/i.test(html);

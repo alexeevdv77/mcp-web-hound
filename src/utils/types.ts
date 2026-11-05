@@ -295,9 +295,6 @@ export interface Config {
   DDG_MAX_PAGES: number;
   BING_RESULTS_PER_PAGE: number;
   BING_MAX_PAGES: number;
-  BING_ACCEPT_LANGUAGE: string | undefined;
-  BING_MARKET: string | undefined;
-  BING_USE_COOKIES: boolean;
   DDG_RPM: number;
   DDG_RPD: number;
   DDG_RPMONTH: number;
@@ -375,9 +372,6 @@ export const FIELD_DEFS: FieldDef[] = [
   { key: 'DDG_MAX_PAGES', kind: 'number', default: 1, description: 'Max DuckDuckGo pages to scrape' },
   { key: 'BING_RESULTS_PER_PAGE', kind: 'number', default: 10, description: 'Bing results per page' },
   { key: 'BING_MAX_PAGES', kind: 'number', default: 1, description: 'Max Bing pages to scrape' },
-  { key: 'BING_ACCEPT_LANGUAGE', kind: 'optional-string', default: undefined, description: 'Override Bing Accept-Language (default: derived from query languages)' },
-  { key: 'BING_MARKET', kind: 'optional-string', default: undefined, description: 'Force Bing market code (e.g. ru-RU). Empty = no market param' },
-  { key: 'BING_USE_COOKIES', kind: 'boolean', default: true, description: 'Bootstrap a Bing cookie session before scraping (improves multilingual relevance)' },
   { key: 'DDG_RPM', kind: 'number', default: 10, description: 'DuckDuckGo max requests per minute' },
   { key: 'DDG_RPD', kind: 'number', default: 200, description: 'DuckDuckGo max requests per day' },
   { key: 'DDG_RPMONTH', kind: 'number', default: 6000, description: 'DuckDuckGo max requests per month' },

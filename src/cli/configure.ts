@@ -55,7 +55,7 @@ const SECTIONS: Section[] = [
   {
     key: 'bing',
     label: 'Bing',
-    description: 'Bing scraping: cookies, locale, fetch strategy, browser mode',
+    description: 'Bing scraping: results per page, page count',
     match: k => k.startsWith('BING_') && !/(_RPM|_RPD|_RPMONTH)$/.test(k),
   },
   {
@@ -126,7 +126,6 @@ function fieldTypeOf(kind: string): { fieldType: FieldType; enumValues?: string[
   if (kind === 'number') return { fieldType: 'number' };
   if (kind === 'loglevel') return { fieldType: 'enum', enumValues: ['debug', 'info', 'warn', 'error'] };
   if (kind === 'execmode') return { fieldType: 'enum', enumValues: ['parallel', 'sequential'] };
-  if (kind === 'fetchmode') return { fieldType: 'enum', enumValues: ['http', 'browser'] };
   return { fieldType: 'string' };
 }
 
