@@ -9,6 +9,8 @@
 >
 > GitHub: <https://github.com/alexeevdv77/mcp-web-hound> · npm: <https://www.npmjs.com/package/mcp-web-hound>
 
+> **This is a fork, and its purpose is testing agent systems.** It is my own workbench: providers, thresholds and the configuration surface change here first, often without notice, and regressions are part of the deal. If you want a stable, supported release, use the original project — <https://github.com/ilgizar-valiullin/mcp-web-hound> (npm: <https://www.npmjs.com/package/mcp-web-hound>).
+
 > ⚠️ **Work in progress.** Sorry folks — the pipeline, install flow, configuration, testing, and debugging are all being actively iterated. Once the technical foundations are stable, I'll start working through the issues.
 
 ## AI-Generated Issues
