@@ -14,4 +14,5 @@ with caching, reranking and rate limits behind a few simple tools.
 - [Reranking](reranking.md)
 - [Budget System](budget.md)
 - [Configuration](configuration.md)
+- [Tavily through a Cloudflare Worker](tavily-proxy-worker.md)
 - [Roadmap](roadmap.md)

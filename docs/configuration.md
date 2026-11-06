@@ -86,7 +86,7 @@ All settings via `.env` file or environment variables.
 |----------|---------|-------------|
 | `TAVILY_API_KEY` | — | Tavily API key |
 | `TAVILY_DAILY_LIMIT` | `30` | Daily request limit |
-| `TAVILY_BASE_URL` | `https://api.tavily.com` | Endpoint origin — point it at a proxy when `api.tavily.com` is unreachable; `/search` is appended unless the path already ends with it |
+| `TAVILY_BASE_URL` | `https://api.tavily.com` | Endpoint origin — point it at a proxy when `api.tavily.com` is unreachable; `/search` is appended unless the path already ends with it (see [Tavily through a Cloudflare Worker](tavily-proxy-worker.md)) |
 
 ### Exa (Tier 3 — API)
 
