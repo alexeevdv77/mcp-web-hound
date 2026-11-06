@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ExaProvider, exaSearchUrl, EXA_DEFAULT_BASE_URL } from '../../../src/search/providers/exa.js';
+import { ExaProvider, exaSearchUrl, exaSnippet, EXA_DEFAULT_BASE_URL, EXA_SNIPPET_MAX_CHARS } from '../../../src/search/providers/exa.js';
 import { config } from '../../../src/utils/config.js';
 import { ProviderOptions } from '../../../src/utils/types.js';
 
@@ -154,5 +154,56 @@ describe('Exa endpoint override (EXA_BASE_URL)', () => {
     } finally {
       (config as { EXA_BASE_URL?: string }).EXA_BASE_URL = EXA_DEFAULT_BASE_URL;
     }
+  });
+
+  it('asks for contents.highlights, not for page text', async () => {
+    const provider = new ExaProvider();
+    global.fetch = vi.fn().mockResolvedValueOnce(okResponse);
+    await provider.doSearch('sqlite vacuum', { intent: 'web', freshness: 'any', max_results: 5 });
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+    expect(body.contents).toEqual({ highlights: true });
+    expect(body.text).toBeUndefined();
+  });
+});
+
+describe('Exa snippets (contents.highlights)', () => {
+  const long = `${'word '.repeat(400)}tail`;
+
+  it('joins the highlight passages and collapses their whitespace', () => {
+    expect(exaSnippet({ highlights: ['first  line\nhere', 'second\n\npassage'] })).toBe('first line here second passage');
+  });
+
+  it('accepts a single string instead of an array', () => {
+    expect(exaSnippet({ highlights: '  one passage  ' })).toBe('one passage');
+  });
+
+  it('cuts the snippet at the documented limit and marks the cut', () => {
+    const snippet = exaSnippet({ highlights: [long] });
+    expect(snippet.length).toBe(EXA_SNIPPET_MAX_CHARS);
+    expect(snippet.endsWith('…')).toBe(true);
+    expect(snippet).not.toContain('tail');
+  });
+
+  it('falls back to text when there are no highlights', () => {
+    expect(exaSnippet({ text: 'page  text' })).toBe('page text');
+    expect(exaSnippet({ highlights: ['', '   '], text: 'fallback' })).toBe('fallback');
+  });
+
+  it('is empty when the answer carries neither', () => {
+    expect(exaSnippet({})).toBe('');
+  });
+
+  it('maps highlights into the result snippet', async () => {
+    const provider = new ExaProvider();
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          results: [{ title: 'T', url: 'https://example.com/', highlights: ['a\n\nb', 'c'.repeat(700)] }],
+        }),
+    } as Response);
+    const results = await provider.doSearch('test', { intent: 'web', freshness: 'any', max_results: 5 });
+    expect(results[0].snippet.length).toBe(EXA_SNIPPET_MAX_CHARS);
+    expect(results[0].snippet.startsWith('a b c')).toBe(true);
   });
 });

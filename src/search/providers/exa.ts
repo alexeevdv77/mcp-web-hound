@@ -8,6 +8,7 @@ interface ExaResult {
   title: string;
   url: string;
   text?: string;
+  highlights?: string[] | string;
   publishedDate?: string;
   published_date?: string;
   score?: number;
@@ -33,6 +34,28 @@ export const EXA_DEFAULT_BASE_URL = 'https://api.exa.ai';
  */
 export function exaSearchUrl(base: string | undefined): string {
   return searchEndpoint(base, EXA_DEFAULT_BASE_URL);
+}
+
+/** How much of Exa's highlights survives in a snippet. */
+export const EXA_SNIPPET_MAX_CHARS = 600;
+
+/**
+ * Snippet source for one result: the `highlights` passages Exa selected for it,
+ * joined and cut to `EXA_SNIPPET_MAX_CHARS`. Whitespace is collapsed — highlights
+ * carry markdown and line breaks, which read badly inside a one-line snippet.
+ * `text` is only a fallback, since the search endpoint does not return page text
+ * unless asked for it.
+ */
+export function exaSnippet(result: Pick<ExaResult, 'highlights' | 'text'>): string {
+  const parts = Array.isArray(result.highlights) ? result.highlights : [result.highlights];
+  const joined = parts
+    .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const source = joined || (result.text ?? '').replace(/\s+/g, ' ').trim();
+  if (!source) return '';
+  return source.length > EXA_SNIPPET_MAX_CHARS ? `${source.slice(0, EXA_SNIPPET_MAX_CHARS - 1)}…` : source;
 }
 
 export class ExaProvider extends BaseProvider {
@@ -68,8 +91,14 @@ export class ExaProvider extends BaseProvider {
         query,
         type: 'keyword',
         num_results: options.max_results,
-        include_domains: undefined,
-        start_published_date: undefined,
+        // Passages Exa picks from each page. Free while the request stays within
+        // its first 10 results (the base price covers them), and far smaller than
+        // full page text: measured through our own relay on one ~10-result query —
+        // no contents 2.3 KB, contents.highlights 25.8 KB, contents.text 105.5 KB,
+        // costDollars identical in all three ($0.007). Top-level `text: true` is not
+        // a /search parameter at all — the API answers with the warning
+        // "text is not a top-level /search parameter … Send it as contents.text".
+        contents: { highlights: true },
       }),
     });
 
@@ -86,7 +115,7 @@ export class ExaProvider extends BaseProvider {
     return data.results.slice(0, options.max_results).map((r, i) => ({
       title: r.title ?? '',
       url: r.url ?? '',
-      snippet: r.text ?? '',
+      snippet: exaSnippet(r),
       published_date: r.publishedDate ?? r.published_date,
       raw_position: i + 1,
       provider: 'exa',
