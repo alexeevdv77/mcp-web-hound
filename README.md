@@ -56,15 +56,27 @@ The heavy stack (SQLite + sqlite-vec, providers, ONNX models) lives in a private
 
 ## OpenCode Setup
 
-Add to `~/.config/opencode/opencode.json` under `mcp`:
+Recommended `~/.config/opencode/opencode.json` (global install):
 
-```json
-"web_search": {
-  "type": "local",
-  "command": ["mcp-web-hound"],
-  "enabled": true
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Optional: drop OpenCode's built-in search so this server is the only search path.
+  // Its providers always use their stock origins and can be blocked or unreachable.
+  "websearch": false,
+  "mcp": {
+    "servers": {
+      "web_search": {
+        "type": "local",
+        "command": ["mcp-web-hound"]
+      }
+    }
+  }
 }
 ```
+
+V2 has no `enabled` field for a server: a configured server connects by itself, and
+`"disabled": true` keeps it configured but disconnected.
 
 Or via CLI:
 

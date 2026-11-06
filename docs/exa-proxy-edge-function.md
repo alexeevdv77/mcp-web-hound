@@ -2,10 +2,9 @@
 
 An optional pass-through in front of `api.exa.ai`, the same idea as
 [Tavily through a Cloudflare Worker](tavily-proxy-worker.md) but on Supabase Edge
-Functions. It exists for the same reason: from this network `api.exa.ai/search`
-answers `403 Forbidden`. Measured on 2026-11-06 — `POST https://api.exa.ai/search`
-→ `403` in 157 ms with a valid key, the same key through the Edge Function below →
-`200` with results in ~500 ms.
+Functions. It exists for the same reason: the stock Exa origin can be blocked or
+unreachable from the network the server runs on (a `403` on a request that carries a
+valid key is the typical symptom), and a relay you control answers instead.
 
 The function stores nothing: no keys, no secrets, no environment variables. It reads
 the caller's `x-api-key` header and forwards it, replays the JSON body unchanged and
@@ -33,9 +32,9 @@ the `x-api-key` header** — a relay that only copies the body will not work.
    `https://<project-ref>.supabase.co/functions/v1/exa-api`. Keep that address out of
    this repository — the placeholder here is deliberate.
 
-Measured evidence that step 2 is the one that matters: a call without `x-api-key`
-returns this function's own `401 {"error":"x-api-key header is missing."}`, not
-Supabase's built-in `401` — the request reached the handler.
+A useful check that step 2 was applied: a call without `x-api-key` returns this
+function's own `401 {"error":"x-api-key header is missing."}`, not Supabase's built-in
+`401` — the request reached the handler.
 
 ## Script
 
@@ -127,9 +126,9 @@ curl -sS -L -X POST "https://<project-ref>.supabase.co/functions/v1/exa-api/sear
   -d '{"query": "Погода в Москве", "numResults": 3}'
 ```
 
-Measured here: `200`, 3 results, 927 bytes. `npm run test:exa` prints the resolved
-endpoint, whether the channel is stock or proxy, the HTTP status and the results, so
-the whole chain is visible in one command.
+A working relay answers `200` with Exa's own JSON and a `results` array.
+`npm run test:exa` prints the resolved endpoint, whether the channel is stock or proxy,
+the HTTP status and the results, so the whole chain is visible in one command.
 
 ## What the function does to the request and the response
 

@@ -199,7 +199,7 @@ Honestly though — these are just all the free ones I could find :D
 
 - **DDG/Bing parseResults()** detect captcha/blocking responses and throw descriptive errors with remediation hints instead of silently returning empty results
 - **Integration tests** always run (no vitest exclude) to catch HTML structure changes immediately
-- **Budget manager** limits 15 searches and 30 fetches per 30-minute window
+- **Budget manager** limits 30 searches and 30 fetches per 30-minute window
 
 ---
 

@@ -167,73 +167,51 @@ OpenCode has its own built-in web search, so an agent can have two ways to searc
 same time: the built-in `websearch` tool and this server's `web_search`. Which one wins is
 configuration, not luck.
 
-**Discovery differs.** OpenCode V2 puts MCP servers behind Code Mode by default
-(`codemode` defaults to `true`): our tools are not on the model's native tool list, they
-are reachable only through the `execute` tool as
-`tools["web_search"]["web_search"]`. Set `"codemode": false` on the server to declare them
-directly:
+By default our tools sit behind **Code Mode** (`codemode` defaults to `true`), so the model
+reaches them through `execute` as `tools["web_search"]["web_search"]`, while OpenCode's own
+`websearch` tool stays available. Which of the two is used is a matter of the flags below.
 
-```json
+Recommended — one search path, this server:
+
+```jsonc
 {
+  "$schema": "https://opencode.ai/config.json",
+  "websearch": false,
   "mcp": {
     "servers": {
-      "web_search": { "type": "local", "command": ["mcp-web-hound"], "codemode": false }
+      "web_search": {
+        "type": "local",
+        "command": ["mcp-web-hound"]
+      }
     }
   }
 }
 ```
 
-**The tool list is config-dependent.** The server always advertises `web_search`, `status`
-and `github_search`; `report_search_usage` appears only with `SEARCH_LOG_ENABLED=true` and
-`gitlab_search` only with `GITLAB_TOKEN` set. Measured on 2026-11-06 with the default
-config: three tools, which is correct, not a broken registration.
+`"websearch": false` removes the built-in tool from model requests. Reach for it when the
+built-in search cannot work in your environment: its providers always talk to their stock
+origins and there is no endpoint override for them, so a blocked or unreachable origin fails
+the search — OpenCode switches to another provider only on HTTP `429`, and a session keeps
+its chosen provider until it is rate limited. This server still works in such an
+environment, because its API providers accept a proxy endpoint (`TAVILY_BASE_URL`,
+`EXA_BASE_URL`) and it honours a transport proxy (`HTTP_PROXY`).
 
-**Our instructions arrive automatically** as an `<mcp_instructions>` block (the search
-protocol, 1 331 characters in 1.12.2). OpenCode drops that block when the agent's
-permissions deny all of the server's tools, or deny `execute` for a Code Mode server —
-so denying the server also reclaims the context it occupied.
+Other flags, and what each one changes:
 
-### Making the choice deterministic
-
-| Goal | Setting (verified against the V2 docs, 2026-11-06) |
+| Flag | Effect |
 |---|---|
-| Remove the built-in search entirely | `"websearch": false` — the tool disappears from model requests |
-| Make the built-in search work | `"websearch": { "provider": "firecrawl" }` — pins one of the five built-in providers (`exa`, `firecrawl`, `parallel`, `tavily`, `tinyfish`). `"random"` lets OpenCode pick among the ones whose environment variable is set |
-| Block it hard, keeping the tool visible | `{"action": "websearch", "resource": "*", "effect": "deny"}` in `permissions` (the resource is the search query; the last matching rule wins) |
-| Hide our tools instead | `{"action": "web_search_*", "resource": "*", "effect": "deny"}` — the action name is `<server>_<tool>` |
+| `"websearch": { "provider": "tavily" }` | keeps the built-in tool but pins a provider (`exa`, `firecrawl`, `parallel`, `tavily`, `tinyfish`, or `"random"`) instead of letting OpenCode choose one |
+| `"codemode": false` on this server | our tools move onto the model's native tool list instead of behind `execute`: more direct calls, more tool definitions in every request |
+| `{"action": "websearch", "resource": "*", "effect": "deny"}` in `permissions` | blocks the built-in tool but keeps it visible; denying our tools (`"web_search_*"`) also drops the injected search-protocol instructions |
 
-### Why a built-in 403 does not fall back
+How many tools this server advertises depends on its own configuration: `web_search`,
+`status` and `github_search` are always there, `report_search_usage` appears with
+`SEARCH_LOG_ENABLED=true` and `gitlab_search` with `GITLAB_TOKEN` set.
 
-The built-in providers always talk to the stock origins — there is no endpoint override for
-them, unlike `TAVILY_BASE_URL` / `EXA_BASE_URL` here. OpenCode rotates to another provider
-only on **HTTP 429** (that provider enters a cooldown of `Retry-After`, or 60 s), and a
-session keeps using its selected provider until it is rate limited. A `403` from a blocked
-origin is not a rate limit, so the search simply fails and the agent moves on to whatever
-tool still answers.
-
-Measured on 2026-11-06 from this network:
-
-| Endpoint | Result |
-|---|---|
-| `api.tavily.com/search` | `403 Forbidden` — works only through the Worker relay in `TAVILY_BASE_URL` |
-| `api.exa.ai/search` | `403 Forbidden` in 157 ms — works only through the relay in `EXA_BASE_URL` |
-| `api.firecrawl.dev/v2/search` | reachable: `400` to an empty body, and a real query returned 5 results with snippets (146–1 785 characters) with **no relay at all** |
-
-So on a network that blocks Exa and Tavily, the built-in tool works only if it is pinned to
-`firecrawl`; everything else in that network needs a relay, which only this server can use.
-Note the trade-off before pinning Firecrawl in both places: the key is a 500-credit trial,
-and this server additionally caps Firecrawl at `FIRECRAWL_RPM=5`, `FIRECRAWL_RPD=15`,
-`FIRECRAWL_RPMONTH=500`.
-
-### The real ceiling is the budget, not the tool choice
-
-`BUDGET_MAX_SEARCHES=15` per `BUDGET_WINDOW_MINUTES=30` protects the API quotas, and an
-agent that searches per factual question hits it. `status` shows the counters (per provider
-per day, cache hits, budget window). Raising it is a one-line change in the server `.env`:
-
-```bash
-npx mcp-web-hound configure --json set BUDGET_MAX_SEARCHES=30
-```
+For an agent that searches per factual question the practical ceiling is not the tool choice
+but the budget: `BUDGET_MAX_SEARCHES` per `BUDGET_WINDOW_MINUTES` (30 searches per 30
+minutes by default). `status` shows the counters, and a tight limit is raised with
+`npx mcp-web-hound configure --json set BUDGET_MAX_SEARCHES=60`.
 
 ## Verify
 
@@ -256,12 +234,12 @@ BING_ENABLED=true
 
 **Built-in web search fails with `Web search request failed (HTTP 403)`**  
 OpenCode's own search tool always uses the provider's stock origin (`api.tavily.com`,
-`api.exa.ai`, …) and has no endpoint override, so on a network that blocks those hosts it
-fails no matter which provider is chosen — and rotation to another provider happens only
-on `429`, not on `403`. Either pin a provider that is reachable here
-(`"websearch": { "provider": "firecrawl" }`, measured reachable on 2026-11-06) or remove
-the built-in tool and search through this server, which can point Tavily and Exa at
-relays. See [Which search tool the model actually calls](#which-search-tool-the-model-actually-calls-opencode-v2).
+`api.exa.ai`, …) and has no endpoint override, so when that origin is blocked or
+unreachable from your network the search fails whichever provider is chosen — rotation to
+another provider happens only on `429`, not on `403`. Either pin a provider your network can
+actually reach (`"websearch": { "provider": "…" }`) or set `"websearch": false` and search
+through this server, whose API providers accept a proxy endpoint. See
+[Which search tool the model actually calls](#which-search-tool-the-model-actually-calls-opencode-v2).
 
 **The agent uses the built-in search instead of the MCP tool**  
 Both tools are usually offered at once and the model picks. Our tools sit behind Code Mode

@@ -143,7 +143,7 @@ model downloads in the hot worker.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BUDGET_MAX_SEARCHES` | `15` | Max search queries per window |
+| `BUDGET_MAX_SEARCHES` | `30` | Max search queries per window |
 | `BUDGET_MAX_FETCHES` | `30` | Max page fetches per window |
 | `BUDGET_WINDOW_MINUTES` | `30` | Sliding window size (min) |
 

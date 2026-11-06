@@ -14,13 +14,13 @@ An AI agent can enter a search loop:
 
 | Resource | Limit | Description |
 |----------|-------|-------------|
-| Search queries | 15 | Unique search queries to providers |
+| Search queries | 30 | Unique search queries to providers |
 | Page fetches | 30 | Page content downloads |
 | Budget window | 30 minutes | Sliding time window |
 
 **Configuration:**
 ```env
-BUDGET_MAX_SEARCHES=15
+BUDGET_MAX_SEARCHES=30
 BUDGET_MAX_FETCHES=30
 BUDGET_WINDOW_MINUTES=30
 ```
@@ -56,10 +56,10 @@ interface BudgetCheckResult {
 ```json
 {
   "error": "BUDGET_EXCEEDED",
-  "message": "Search budget exhausted: 15/15 searches used in current 30-minute window. Budget resets at 14:35 UTC. Try rephrasing your approach or waiting.",
+  "message": "Search budget exhausted: 30/30 searches used in current 30-minute window. Budget resets at 14:35 UTC. Try rephrasing your approach or waiting.",
   "budget": {
-    "searches_used": 15,
-    "searches_max": 15,
+    "searches_used": 30,
+    "searches_max": 30,
     "fetches_used": 22,
     "fetches_max": 30,
     "resets_at": "2024-01-15T14:35:00Z"
@@ -139,24 +139,24 @@ class DeduplicationBuffer {
 
 ```
 [14:00:01] web_search("opencode plugins")
-  → Budget: 1/15 searches
+  → Budget: 1/30 searches
   → Providers: DDG → 10 results
   → Cached under key "abc123"
 
 [14:00:15] web_search("opencode plugin docs")
   → Embedding similarity with "opencode plugins": 0.94
   → DEDUPLICATED → return cached results for "abc123"
-  → Budget: still 1/15 (not counted)
+  → Budget: still 1/30 (not counted)
 
 [14:00:30] web_search("opencode plugin documentation")
   → Embedding similarity with "opencode plugins": 0.93
   → DEDUPLICATED → return cached results for "abc123"
-  → Budget: still 1/15 (not counted)
+  → Budget: still 1/30 (not counted)
 
 [14:01:00] web_search("vscode extensions api")
   → Embedding similarity with all recent: max 0.45
   → UNIQUE → send to providers
-  → Budget: 2/15 searches
+  → Budget: 2/30 searches
 ```
 
 ---

@@ -358,7 +358,7 @@ export const FIELD_DEFS: FieldDef[] = [
   { key: 'PROVIDER_EXECUTION_MODE', kind: 'execmode', default: 'parallel', description: 'Run providers in parallel or fall through one by one' },
   { key: 'MAX_RESULTS_AFTER_RERANK', kind: 'number', default: 10, description: 'Max results returned after reranking' },
   { key: 'SEARCH_TIMEOUT_MS', kind: 'number', default: 15000, description: 'Per-provider search timeout in milliseconds' },
-  { key: 'BUDGET_MAX_SEARCHES', kind: 'number', default: 15, description: 'Max searches allowed per budget window' },
+  { key: 'BUDGET_MAX_SEARCHES', kind: 'number', default: 30, description: 'Max searches allowed per budget window' },
   { key: 'BUDGET_MAX_FETCHES', kind: 'number', default: 30, description: 'Max page fetches allowed per budget window' },
   { key: 'BUDGET_WINDOW_MINUTES', kind: 'number', default: 30, description: 'Budget window duration in minutes' },
   { key: 'CACHE_MAX_SIZE_MB', kind: 'number', default: 500, description: 'Max cache database size in MB (0 = unlimited)' },

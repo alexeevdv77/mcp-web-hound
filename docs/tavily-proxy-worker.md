@@ -1,9 +1,9 @@
 # Tavily through a Cloudflare Worker
 
 An optional, self-hosted pass-through in front of `api.tavily.com`. It exists for one
-reason: the Tavily provider talks to a fixed origin, and from some networks that origin
-answers `403 Forbidden`. Measured on 2026-11-03 — `api.tavily.com/search` → `403` from
-this network, the same key through a Worker we run ourselves → `200` with results.
+reason: the Tavily provider talks to a fixed origin, and that origin can be blocked or
+unreachable from the network the server runs on — a plain `403` or a connection failure.
+A proxy you run yourself usually restores the call, with the API key staying on this side.
 
 The Worker is stateless: no keys, no storage, no environment variables. It forwards the
 path and query to Tavily, carries the client's headers and JSON body through, and adds

@@ -88,22 +88,16 @@ word-match rule accepts junk, while distinctive-word rules rejected legitimate r
 Bing is compensated by Startpage/DDG/Brave in the same merge, which is reranked anyway.
 
 **Why scraping only, and where the Chrome channel went.** A headless-Chrome channel (query typed into the
-search box over CDP) is kept on the `bing-browser-mode` branch instead of shipping. Measured 2026-11-04 on
-the same machine and profile, one query per config:
+search box over CDP) is kept on the `bing-browser-mode` branch instead of shipping: hiding the
+`HeadlessChrome` token with a UA override also switches off Chrome's Client Hints, and the search engine
+then answers with a page that has no results container at all, while an honest headless UA still gets
+organic results. So the deciding signal is not the token — it is the client claiming a desktop Chrome it
+does not behave like. A parked channel is cheaper than a provider that spends 20 s timing out on a page
+that can never satisfy the wait condition. Measurements behind this: `docs/roadmap.md`.
 
-| client | `Sec-CH-UA*` on the `/search` request | Bing answer |
-|--------|----------------------------------------|-------------|
-| honest headless UA (`HeadlessChrome/131`) | present | 10 relevant organic results |
-| UA hidden via CDP `setUserAgentOverride` | **absent** (the override switches Client Hints off) | no results container at all, `ak_bmsc` bot cookie set |
-| UA hidden via `--user-agent` flag (hints intact) | present | no results container at all |
-
-So the deciding signal is not the `HeadlessChrome` token — it is the client claiming a desktop Chrome it does
-not behave like. A parked channel is cheaper than a provider that spends 20 s timing out on a page that can
-never satisfy the wait condition.
-
-Why each step exists: Bing can answer bot traffic with a "degraded" SERP (200, a real result container,
-no organic items) — that is the page the parked browser channel hits when the UA lies. The HTTP scraper
-does not produce it: 16 never-asked cold queries on 2026-11-05, cookie-less and header-minimal, all came
-back with 10 `b_algo` blocks. Forced `mkt=en-US&setlang=en-US&cc=US` returned identical junk for **every**
-language, and `mkt=de-DE`/`ja-JP`/`zh-CN` returned literal "no results" pages, which is why the market
-params are gone (2026-11-05) and the query goes out with nothing but `q`/`count`/`first`.
+Why each step exists: the engine can answer bot traffic with a "degraded" SERP (200, a real result
+container, no organic items) — that is the page the parked browser channel hits when the UA lies. The plain
+HTTP scraper does not hit that page: it gets a full organic block, but for a multi-word string it can be
+truncated to what the first word alone would return. Market params (`mkt`/`setlang`/`cc`) do not change
+that and some of them return literal "no results" pages, which is why the query goes out with nothing but
+`q`/`count`/`first` (removed 2026-11-05).

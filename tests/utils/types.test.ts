@@ -33,7 +33,7 @@ describe('ConfigSchema', () => {
     
     expect(result.LOG_LEVEL).toBe('info');
     expect(result.DDG_ENABLED).toBe(true);
-    expect(result.BUDGET_MAX_SEARCHES).toBe(15);
+    expect(result.BUDGET_MAX_SEARCHES).toBe(30);
   });
 
   it('should parse strings into numbers and booleans correctly', () => {

@@ -27,3 +27,9 @@
 12. **Coverage check.** After adding tests, verify coverage doesn't regress: `npm run test:coverage`. Current thresholds: statements 50%, branches 35%, functions 55%, lines 55%.
 
 13. **Search log versioning.** Every entry in the training dataset carries `system_version` for provenance. The `ranker` and `signals` versions are defined as constants in `src/search/reranker.ts` (`RERANKER_VERSION`, `SIGNALS_VERSION`). The `mcp` version comes from `package.json`.
+
+14. **Docs are machine-agnostic.** `README.md` and everything in `docs/` **except `docs/roadmap.md`** must not record what was observed on this machine or network — no "measured from this network", no probe dates, timings, payload sizes of our own calls, or the status codes a provider returned here. Describe the failure class instead: "the stock origin may be blocked or unreachable from your network", "a proxy you run restores the call". Concrete measurements, dates, log-file names and per-provider verdicts belong in `docs/roadmap.md`, which is the internal record. Public docs may point to it ("measurements: `docs/roadmap.md`") but must not repeat its numbers.
+
+15. **Recommended configuration, not a flag tour.** Config sections show one recommended example block and keep the same short version in `README.md`; a flag that is not in the recommendation gets one sentence — why it exists and what it changes overall. No exhaustive matrices of modes and flags.
+
+16. **No private endpoints in the repository.** Real proxy/relay addresses, tokens and keys never go into any committed file (docs, code, tests, commit messages) — placeholders only (`https://proxy.example.com`, `<project-ref>`). Agents write only to the server `.env`.

@@ -173,7 +173,7 @@ sequenceDiagram
 
     Agent->>MCP: web_search({ query: "react hooks tutorial" })
     MCP->>BM: checkBudget()
-    BM-->>MCP: OK (8/15 searches used)
+    BM-->>MCP: OK (8/30 searches used)
     MCP->>QN: normalize("react hooks tutorial")
     QN-->>MCP: { normalized: "react hooks tutorial", key: "abc123" }
     MCP->>IC: classify("react hooks tutorial")
