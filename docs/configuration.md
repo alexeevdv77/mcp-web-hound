@@ -122,7 +122,7 @@ model downloads in the hot worker.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EXA_API_KEY` | — | Exa API key |
-| `EXA_BASE_URL` | `https://api.exa.ai` | Endpoint origin — point it at a proxy when `api.exa.ai` is unreachable; `/search` is appended unless the path already ends with it. The `x-api-key` header is sent as-is, so the proxy must forward headers, not only the body |
+| `EXA_BASE_URL` | `https://api.exa.ai` | Endpoint origin — point it at a proxy when `api.exa.ai` is unreachable; `/search` is appended unless the path already ends with it. The `x-api-key` header is sent as-is, so the proxy must forward headers, not only the body (see [Exa through a Supabase Edge Function](exa-proxy-edge-function.md)) |
 | `EXA_MAX_RESULTS` | `10` | Max raw results |
 
 ### Firecrawl (Tier 3 — API)

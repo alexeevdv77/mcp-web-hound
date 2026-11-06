@@ -15,4 +15,5 @@ with caching, reranking and rate limits behind a few simple tools.
 - [Budget System](budget.md)
 - [Configuration](configuration.md)
 - [Tavily through a Cloudflare Worker](tavily-proxy-worker.md)
+- [Exa through a Supabase Edge Function](exa-proxy-edge-function.md)
 - [Roadmap](roadmap.md)
