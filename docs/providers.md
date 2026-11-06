@@ -192,10 +192,16 @@ TAVILY_BASE_URL=https://api.tavily.com
 | Limits | 1000 requests/month (free) |
 | Key | Required |
 | Intents | web, docs |
+| Endpoint | `api.exa.ai/search`, overridable with `EXA_BASE_URL` |
 
 ```env
 EXA_API_KEY=...
+EXA_BASE_URL=https://api.exa.ai
 ```
+
+**Endpoint override:** `EXA_BASE_URL` is the origin of the API or of a proxy in front of it. `/search` is appended automatically, so a proxy mounted under a path works too — `https://proxy.example.com/functions/v1/exa-api` and `https://proxy.example.com/functions/v1/exa-api/search` both resolve to the same call; a trailing slash is ignored and an empty value falls back to `https://api.exa.ai`. Unlike Tavily, Exa authenticates with the **`x-api-key` header**, so a relay has to forward headers as well as the JSON body. This matters in practice here: on 2026-11-06 `api.exa.ai/search` answered `403 Forbidden` from our own network, while the same key through a relay we run ourselves answered `200` with results. `npm run test:exa` prints the resolved endpoint, the HTTP status and the results.
+
+**What a relay must do:** accept `POST {base}/search` with `content-type: application/json`, pass the body (`query`, `type`, `num_results`, …) and the `x-api-key` header through unchanged, and return Exa's own JSON — `results[]` with `title`, `url`, `text`, `publishedDate`. The relay we run rejects a call without the header: `401 {"error":"x-api-key header is missing."}`. Keep the relay address out of this repository — placeholders only, same rule as in [Tavily through a Cloudflare Worker](tavily-proxy-worker.md). The relay script itself is not published yet.
 
 ### Firecrawl
 

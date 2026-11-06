@@ -2,6 +2,7 @@ import { BaseProvider } from './base-provider.js';
 import { ProviderOptions, ProviderResult } from '../../utils/types.js';
 import { config } from '../../utils/config.js';
 import { logger } from '../../utils/logger.js';
+import { searchEndpoint } from '../../utils/endpoint-url.js';
 
 interface TavilyResult {
   title: string;
@@ -19,8 +20,6 @@ interface TavilyResponse {
 /** Stock Tavily origin, used when TAVILY_BASE_URL is empty or unset. */
 export const TAVILY_DEFAULT_BASE_URL = 'https://api.tavily.com';
 
-const SEARCH_PATH = '/search';
-
 /**
  * Resolve the search endpoint from TAVILY_BASE_URL.
  *
@@ -30,8 +29,7 @@ const SEARCH_PATH = '/search';
  * A trailing slash is ignored, an empty value falls back to the stock origin.
  */
 export function tavilySearchUrl(base: string | undefined): string {
-  const trimmed = (base?.trim() || TAVILY_DEFAULT_BASE_URL).replace(/\/+$/, '');
-  return trimmed.endsWith(SEARCH_PATH) ? trimmed : `${trimmed}${SEARCH_PATH}`;
+  return searchEndpoint(base, TAVILY_DEFAULT_BASE_URL);
 }
 
 export class TavilyProvider extends BaseProvider {

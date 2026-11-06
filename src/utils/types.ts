@@ -264,6 +264,7 @@ export interface Config {
   TAVILY_DAILY_LIMIT: number;
   TAVILY_BASE_URL: string;
   EXA_API_KEY?: string;
+  EXA_BASE_URL: string;
   FIRECRAWL_API_KEY?: string;
   GITHUB_TOKEN?: string;
   GITLAB_TOKEN?: string;
@@ -342,6 +343,13 @@ export const FIELD_DEFS: FieldDef[] = [
       'Tavily endpoint origin. Point it at a proxy you control (in front of Tavily) when api.tavily.com is blocked; /search is appended unless the path already ends with /search',
   },
   { key: 'EXA_API_KEY', kind: 'optional-string', default: undefined, description: 'API key for Exa Search (trial 1000 queries)' },
+  {
+    key: 'EXA_BASE_URL',
+    kind: 'string',
+    default: 'https://api.exa.ai',
+    description:
+      'Exa endpoint origin. Point it at a proxy you control (in front of Exa) when api.exa.ai is blocked; /search is appended unless the path already ends with /search',
+  },
   { key: 'FIRECRAWL_API_KEY', kind: 'optional-string', default: undefined, description: 'API key for Firecrawl (trial 500 credits)' },
   { key: 'GITHUB_TOKEN', kind: 'optional-string', default: undefined, description: 'GitHub personal access token (optional, 60 req/hr without)' },
   { key: 'GITLAB_TOKEN', kind: 'optional-string', default: undefined, description: 'GitLab personal access token with read_api scope' },

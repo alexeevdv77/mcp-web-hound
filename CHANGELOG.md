@@ -4,10 +4,11 @@
 
 ### Added
 
+- Exa endpoint override: `EXA_BASE_URL` (origin or proxy prefix, `/search` appended unless already in the path) — the same contract as `TAVILY_BASE_URL`, resolved by the shared helper `searchEndpoint()` in `src/utils/endpoint-url.ts`. Needed because `api.exa.ai/search` answers `403 Forbidden` from our network while a relay we run answers `200`. Note that Exa authenticates with the `x-api-key` header, so a relay must forward headers, not only the body. Manual check: `npm run test:exa`.
 - Standard proxy support: `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` (lowercase spellings too) now apply to every outbound request — providers, GitHub/GitLab tools, page fetches, model downloads. `installEnvProxy()` (`src/utils/proxy.ts`) installs the undici `EnvHttpProxyAgent` dispatcher in the main process, the hot worker and the manual provider scripts, and only when a proxy variable is set; without one the global dispatcher is untouched. The proxy URL is logged with credentials masked.
 - Dependency: `undici@^7` (runtime); `engines.node` raised to `>=20.18.1` (the floor for undici 7).
-- Tests: `tests/utils/proxy.test.ts` — variable detection and precedence, credential redaction, dispatcher installed vs left alone (11 tests).
-- Docs: "HTTP Proxy" section in `docs/configuration.md`, commented `HTTP_PROXY`/`NO_PROXY` block in `default.env`.
+- Tests: `tests/utils/proxy.test.ts` — variable detection and precedence, credential redaction, dispatcher installed vs left alone (11 tests). `tests/search/providers/exa.test.ts` — `EXA_BASE_URL` resolution (proxy origin carrying a path, an endpoint that already ends with `/search`, trailing slash, stock fallback) plus the `x-api-key` passthrough (8 tests).
+- Docs: "HTTP Proxy" section in `docs/configuration.md`, commented `HTTP_PROXY`/`NO_PROXY` block in `default.env`; Exa endpoint override and the relay contract (`x-api-key` must be forwarded) in `docs/providers.md`, `EXA_BASE_URL` row in `docs/configuration.md`. The Exa relay script itself is still to be documented — the example is provided by the operator, real addresses stay out of the repository.
 
 ## [1.12.2] - 2026-10-30
 

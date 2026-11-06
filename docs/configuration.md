@@ -16,7 +16,7 @@ Config is split across two `.env` files:
 
 ```bash
 npx mcp-web-hound configure                  # Interactive TUI
-npx mcp-web-hound configure --json get       # Machine-readable list of all 76 fields
+npx mcp-web-hound configure --json get       # Machine-readable list of all 70 fields
 npx mcp-web-hound configure --json set KEY=VALUE    # Set one or more values
 npx mcp-web-hound configure --help                 # Full help
 ```
@@ -122,6 +122,7 @@ model downloads in the hot worker.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EXA_API_KEY` | — | Exa API key |
+| `EXA_BASE_URL` | `https://api.exa.ai` | Endpoint origin — point it at a proxy when `api.exa.ai` is unreachable; `/search` is appended unless the path already ends with it. The `x-api-key` header is sent as-is, so the proxy must forward headers, not only the body |
 | `EXA_MAX_RESULTS` | `10` | Max raw results |
 
 ### Firecrawl (Tier 3 — API)
