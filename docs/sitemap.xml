@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/architecture</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/providers</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/caching</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/reranking</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/budget</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/configuration</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/roadmap</loc><lastmod>2026-10-30</lastmod></url>
-  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/deployment-opencode</loc><lastmod>2026-10-30</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/</loc><lastmod>2026-11-06</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/architecture</loc><lastmod>2026-11-04</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/architecture-decisions</loc><lastmod>2026-10-28</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/providers</loc><lastmod>2026-11-06</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/caching</loc><lastmod>2026-11-02</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/reranking</loc><lastmod>2026-06-26</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/budget</loc><lastmod>2026-06-29</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/configuration</loc><lastmod>2026-11-06</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/tavily-proxy-worker</loc><lastmod>2026-11-06</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/exa-proxy-edge-function</loc><lastmod>2026-11-06</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/testing</loc><lastmod>2026-11-06</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/deployment-opencode</loc><lastmod>2026-11-02</lastmod></url>
+  <url><loc>https://alexeevdv77.github.io/mcp-web-hound/roadmap</loc><lastmod>2026-11-06</lastmod></url>
 </urlset>
