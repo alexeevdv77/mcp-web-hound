@@ -46,7 +46,7 @@ export type BingAttemptVerdict = 'usable' | 'empty' | 'error';
 
 /** One fetch performed by the last `doSearch`, kept for diagnostics (`npm run test:bing`). */
 export interface BingAttempt {
-  mode: 'http';
+  mode: 'http' | 'rss';
   page: number;
   status?: number;
   results: number;
@@ -64,8 +64,16 @@ export interface BingAttempt {
  * see `docs/roadmap.md`): none of them changed the result set, and the market
  * params either returned the same filler or zero results.
  *
- * A second channel (query typed into Bing in headless Chrome over CDP) lives on
- * the `bing-browser-mode` branch: as measured on 2026-11-04, any UA override
+ * Two channels, picked by `BING_FETCH_MODE` (measurements in `docs/roadmap.md`):
+ * `html` scrapes the paged SERP, `rss` reads `/search?q=…&format=rss` — one
+ * request, at most 10 items, real destination URLs instead of `bing.com/ck/a`
+ * tracking links. The RSS feed ignores `count`/`first`, so page-size and
+ * pagination settings do not apply to it. Neither channel scores relevance:
+ * both return what Bing answered, and the other providers in the merge
+ * compensate.
+ *
+ * **Parked:** a third channel (query typed into Bing in headless Chrome over
+ * CDP) lives on the `bing-browser-mode` branch: as measured on 2026-11-04, any UA override
  * that hides the `HeadlessChrome` token also switches off Chrome's Client Hints,
  * and Bing then answers with a page that has no results container at all. That
  * channel is parked there until it is fixed; the HTTP channel stays here.
@@ -85,11 +93,13 @@ export class BingProvider extends BaseProvider {
 
   private resultsPerPage: number;
   private maxPages: number;
+  private fetchMode: 'html' | 'rss';
 
   constructor() {
     super();
     this.resultsPerPage = config.BING_RESULTS_PER_PAGE;
     this.maxPages = config.BING_MAX_PAGES;
+    this.fetchMode = config.BING_FETCH_MODE;
   }
 
   async doSearch(query: string, options: ProviderOptions): Promise<ProviderResult[]> {
@@ -97,7 +107,9 @@ export class BingProvider extends BaseProvider {
 
     await throttle();
 
-    return this.searchViaHttp(query, options);
+    return this.fetchMode === 'rss'
+      ? this.searchViaRss(query, options)
+      : this.searchViaHttp(query, options);
   }
 
   /** Paged scraping. Stops at the first page that carries no organic results. */
@@ -149,6 +161,56 @@ export class BingProvider extends BaseProvider {
     }
 
     return allResults;
+  }
+
+  /**
+   * RSS channel: one request, no paging. Bing ignores `count` and `first` on
+   * `format=rss` and always returns at most 10 items (measured 2026-11-06), so
+   * the request is just `q` + `format`.
+   */
+  private async searchViaRss(query: string, options: ProviderOptions): Promise<ProviderResult[]> {
+    const started = Date.now();
+    const url = new URL(BING_SEARCH_URL);
+    url.searchParams.set('q', query);
+    url.searchParams.set('format', 'rss');
+
+    logger.debug({ url: url.toString() }, 'Bing RSS request');
+
+    const response = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: REQUEST_HEADERS,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Bing returned ${response.status}: ${response.statusText}`);
+    }
+
+    const body = await response.text();
+    const contentType = response.headers.get('content-type') ?? '';
+    const isXml = /xml/i.test(contentType) || body.trimStart().startsWith('<?xml');
+    if (!isXml) {
+      // A blocked/captcha request comes back as HTML with a 200, not as a feed.
+      throw new Error('Bing RSS channel returned no XML — captcha/blocking page');
+    }
+
+    const results = this.parseRss(body, Math.max(1, options.max_results));
+    const verdict: BingAttemptVerdict = results.length > 0 ? 'usable' : 'empty';
+
+    this.attempts.push({
+      mode: 'rss',
+      page: 1,
+      status: response.status,
+      results: results.length,
+      verdict,
+      reason: verdict === 'empty' ? 'no items in the RSS feed' : undefined,
+      ms: Date.now() - started,
+    });
+
+    if (verdict === 'empty') {
+      logger.debug({ query }, 'Bing RSS returned no items — other providers cover this query');
+    }
+
+    return results;
   }
 
   /**
@@ -251,15 +313,66 @@ export class BingProvider extends BaseProvider {
     return results;
   }
 
+  /**
+   * Parse Bing's RSS 2.0 feed. Items carry a real destination URL (no
+   * `bing.com/ck/a` tracking link), a title, an HTML-ish description and an
+   * RFC-822 `pubDate`. The feed is capped at 10 items; no relevance judgement.
+   */
+  private parseRss(xml: string, maxResults: number): ProviderResult[] {
+    const results: ProviderResult[] = [];
+
+    const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+    let position = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = itemRegex.exec(xml)) !== null && results.length < maxResults) {
+      const block = match[1];
+
+      const title = this.decodeEntities(this.tagValue(block, 'title')).trim();
+      const url = this.decodeEntities(this.tagValue(block, 'link')).trim();
+      if (!title || !url) continue;
+
+      const snippet = this.decodeEntities(this.tagValue(block, 'description'))
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      position++;
+      results.push({
+        title,
+        url,
+        snippet,
+        published_date: this.parseRssDate(this.tagValue(block, 'pubDate')),
+        raw_position: position,
+        provider: 'bing',
+      });
+    }
+
+    return results;
+  }
+
+  /** Text of the first `<tag>` in an RSS item, with CDATA unwrapped. */
+  private tagValue(block: string, tag: string): string {
+    const match = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i').exec(block);
+    if (!match) return '';
+    return match[1].replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, '$1');
+  }
+
+  private parseRssDate(value: string): string | undefined {
+    if (!value) return undefined;
+    const parsed = new Date(value.trim());
+    return isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+  }
+
   private decodeEntities(text: string): string {
     return text
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
       .replace(/&nbsp;/g, ' ')
-      .replace(/&#x27;/g, "'")
-      .replace(/&#x2F;/g, '/')
-      .replace(/&#(\d+);/g, (_m: string, n: string) => String.fromCharCode(parseInt(n, 10)));
+      .replace(/&#x([0-9a-f]+);/gi, (_m: string, h: string) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_m: string, n: string) => String.fromCodePoint(parseInt(n, 10)));
   }
 }

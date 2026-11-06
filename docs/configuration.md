@@ -68,6 +68,7 @@ All settings via `.env` file or environment variables.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BING_ENABLED` | `true` | Enable Bing |
+| `BING_FETCH_MODE` | `html` | Bing channel: `html` (paged SERP) or `rss` (one request, ≤10 items, real destination URLs) |
 | `BING_RESULTS_PER_PAGE` | `10` | Results per page |
 | `BING_MAX_PAGES` | `1` | Max pages to scrape |
 

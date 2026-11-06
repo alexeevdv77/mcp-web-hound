@@ -88,13 +88,15 @@ BRAVE_WEB_ENABLED=true
 
 | Parameter | Value |
 |-----------|-------|
-| Type | HTML scraping |
+| Type | HTML scraping / RSS feed |
 | API | GET `bing.com/search` |
 | Limits | Implicit (IP-based) |
 | Key | Not required |
 | Intents | web |
 
 **Channel:** paged scraping of `/search?q=` — the request carries `q`, `count` and `first` and nothing else, so there is no session state and no warm-up request. Fast (~0.2 s), no dependencies.
+
+**RSS channel (`BING_FETCH_MODE=rss`):** the same endpoint with `format=rss` returns an RSS 2.0 feed — one request, at most 10 items, no paging — with the real destination URL in `<link>` instead of a `bing.com/ck/a` tracking wrapper, plus `title`, `description` and `pubDate`. Measured 2026-11-06: 4.9–5.9 KB in 136–275 ms, `count=10|20|50` and `first=11|21` are ignored (always 10 items), and an empty query answers `200` with zero `<item>`s. Relevance is the same as the HTML channel — the feed does not fix the junk — so it is a cheaper structural channel, not a better one.
 
 > **Parked: the headless-Chrome channel.** A second channel that typed the query into Bing's search box over CDP lives on the `bing-browser-mode` branch and is not shipped. Measured on 2026-11-04: overriding the user-agent to hide the `HeadlessChrome` token also switches off Chrome's Client Hints, and the request then carries no `Sec-CH-UA*` at all — Bing answers that client with a page that has **no results container** (`b_results`, `b_algo`, `b_content` all absent) and sets the Akamai bot cookie `ak_bmsc`. Honest headless UA gets a normal SERP; any UA lie (CDP override or `--user-agent` flag) gets nothing. The channel stays on the branch until that is solved.
 
@@ -104,6 +106,7 @@ BRAVE_WEB_ENABLED=true
 - Headers are constant and browser-like (`Chrome/131` UA, `Accept-Language: en-US,en;q=0.9`). Measured 2026-11-05: deriving the header from the query languages, pinning `en-US` or omitting it entirely made no difference to the SERP
 - No market params (`mkt`/`setlang`/`cc`). Re-measured 2026-11-04 against the fix upstream SearXNG shipped for this engine ([PR #6671](https://github.com/searxng/searxng/pull/6671): `mkt` → `setlang=` + `cc=`, `us|cn|ru` skipped, `Accept-Language` override dropped): from this IP no combination changes the result set, and `cc=by|de` / `mkt=de-DE|kk-KZ` return zero results — see the Bing bullets in `docs/roadmap.md`
 - No cookie session. Measured 2026-11-05 on 16 never-asked cold queries: cookie-less scraping returned a full SERP with 10 `b_algo` blocks every time, so the former homepage warm-up was dropped (it cost one extra request and changed nothing)
+- Two channels behind `BING_FETCH_MODE`: `html` (paged SERP, default) and `rss` (single request, ≤10 items, real destination URLs; `BING_RESULTS_PER_PAGE`/`BING_MAX_PAGES` do not apply)
 - Parses `b_algo` blocks from HTML results page
 - Different index from DDG — expands coverage
 - 1s between requests via slot reservation, so parallel tool calls don't fire simultaneously (that burst is what triggers contentless SERPs)
@@ -117,6 +120,8 @@ BRAVE_WEB_ENABLED=true
 | no organic blocks (`b_no` notice, or a "degraded" page without `b_algo`) | empty result set → Bing steps aside, Startpage/DDG/Brave answer |
 | a page carries fewer results than requested | pagination stops, earlier pages are kept |
 | HTML layout changed (no `b_results`/`b_algo`/`b_no` at all) | provider error, so the change is visible instead of silent |
+| RSS response is not XML (captcha/block page) | provider error → same suspension policy as any other block |
+| RSS feed carries no `<item>` | empty result set → same handling as a `b_no` page |
 
 **What is deliberately *not* done:** the SERP is not scored for relevance. Text-overlap heuristics misjudge too many legitimate result sets (they reject good pages and accept plausible junk). If Bing answers a query badly, the other providers in the same merge compensate — the merged answer is reranked anyway.
 
@@ -125,9 +130,10 @@ BRAVE_WEB_ENABLED=true
 **Configuration:**
 ```env
 BING_ENABLED=true
+BING_FETCH_MODE=html   # html | rss
 ```
 
-Diagnostics: `npm run test:bing` prints every request and every fetched page with its verdict and latency — see [testing.md](testing.md).
+Diagnostics: `npm run test:bing` prints every request and every fetched page with its verdict and latency; run `BING_FETCH_MODE=rss npm run test:bing` to check the feed channel — see [testing.md](testing.md).
 
 ---
 

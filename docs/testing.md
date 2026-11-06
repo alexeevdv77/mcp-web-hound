@@ -23,7 +23,7 @@ npm run test:all
 
 Pushes one real query through `BingProvider` and prints everything needed to debug a bad SERP:
 
-- config in effect (cookies / market / `Accept-Language`)
+- config in effect (fetch channel, page size, page count)
 - every HTTP request (URL, `Accept-Language`, cookie names, SERP markers: `b_algo` count, `b_no`, captcha hint)
 - the **fetch log** — one row per page: `[http] p1 usable results=10 HTTP 200 197ms`, plus the reason when the page was empty
 - the results exactly as Bing returned them — the script does not score relevance, it shows what is there
@@ -35,6 +35,7 @@ npm run test:bing                                  # default query
 npm run test:bing -- Сколько стоит солярка         # any query, any language
 
 # experiment without touching code
+BING_FETCH_MODE=rss npm run test:bing               # check the RSS feed channel
 BING_RESULTS_PER_PAGE=30 BING_TEST_MAX=30 npm run test:bing
 LOG_LEVEL=info npm run test:bing                   # quieter than the default debug
 ```
@@ -50,6 +51,7 @@ Reading the fetch log:
 | Column | Meaning |
 |--------|---------|
 | `[http]` | fetch channel — scraping of `/search?q=` |
+| `[rss]` | fetch channel — RSS feed (`format=rss`), one request, ≤10 items |
 | `p1`, `p2`, … | page within this search (the channel walks pagination) |
 | `usable` | the page carried organic `b_algo` blocks — results were returned |
 | `empty` | contentless page (`degraded SERP (no organic blocks)`) or Bing reported no results |

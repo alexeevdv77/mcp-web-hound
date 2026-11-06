@@ -6,8 +6,9 @@
  *   $env:BING_TEST_QUERY='Сколько стоит солярка'; npm run test:bing   # if the shell mangles Cyrillic
  *
  * Experiment knobs (env, no code edits needed):
- *   BING_RESULTS_PER_PAGE=30        page size
- *   BING_MAX_PAGES=3                pages to scrape
+ *   BING_FETCH_MODE=rss             switch channel (html | rss)
+ *   BING_RESULTS_PER_PAGE=30        page size (html channel only)
+ *   BING_MAX_PAGES=3                pages to scrape (html channel only)
  *   BING_TEST_MAX=20                max_results for this run
  *   LOG_LEVEL=debug|info            (default debug here)
  *
@@ -49,10 +50,16 @@ const { config } = await import('../src/utils/config.js');
 
 const provider = new BingProvider();
 
+const channel = config.BING_FETCH_MODE;
+
 console.log('\n=== Bing provider check ===');
 console.log(`query            : ${query}`);
-console.log(`channel          : http (scraping)`);
-console.log(`maxResults       : ${maxResults} | perPage=${config.BING_RESULTS_PER_PAGE} | maxPages=${config.BING_MAX_PAGES}`);
+console.log(`channel          : ${channel === 'rss' ? 'rss (feed)' : 'html (scraping)'}`);
+console.log(
+  channel === 'rss'
+    ? `maxResults       : ${maxResults} | RSS feed caps at 10 items; count/first are ignored by Bing`
+    : `maxResults       : ${maxResults} | perPage=${config.BING_RESULTS_PER_PAGE} | maxPages=${config.BING_MAX_PAGES}`,
+);
 
 const started = Date.now();
 let error: string | null = null;
@@ -68,11 +75,13 @@ if (captured.length > 0) {
   console.log(`\nHTTP requests (${captured.length}):`);
   captured.forEach((c, i) => {
     const algoCount = (c.body.match(/class="b_algo/g) || []).length;
+    const isXml = c.body.trimStart().startsWith('<?xml');
+    const itemCount = (c.body.match(/<item>/gi) || []).length;
     const markerFlags = [
-      `b_algo=${algoCount}`,
-      c.body.includes('class="b_no"') ? 'b_no=yes' : null,
+      isXml ? `xml items=${itemCount}` : `b_algo=${algoCount}`,
+      !isXml && c.body.includes('class="b_no"') ? 'b_no=yes' : null,
       // same rule the provider uses: a captcha marker only matters when nothing was parsed
-      algoCount === 0 && /g-captcha|captcha-invoker|b_capt/i.test(c.body) ? 'captchaHint=yes' : null,
+      !isXml && algoCount === 0 && /g-captcha|captcha-invoker|b_capt/i.test(c.body) ? 'captchaHint=yes' : null,
     ].filter(Boolean).join(' ');
     console.log(`  ${i + 1}. ${c.status} ${c.url.slice(0, 110)}`);
     const al = c.requestHeaders['Accept-Language'];

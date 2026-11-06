@@ -36,6 +36,7 @@ vi.mock('../../../src/utils/config.js', () => ({
     FETCH_USER_AGENT: 'SearchMCP/1.0',
     CONTENT_MAX_LENGTH: 8000,
     RERANK_ENABLED: true,
+    BING_FETCH_MODE: 'html',
     BING_RESULTS_PER_PAGE: 10,
     BING_MAX_PAGES: 1,
   },
@@ -75,6 +76,15 @@ const degradedHtml = '<ol id="b_results"><li class="b_pag"><a href="/search?firs
 const noResultsHtml = '<ol id="b_results"><li class="b_no">Es gibt keine Ergebnisse für neueste version npm</li></ol>';
 
 const captchaHtml = '<html><body><div class="g-captcha">Please verify that you are not a robot</div></body></html>';
+
+/** Bing's RSS channel: real links, CDATA, entities, an optional pubDate. */
+const rssFeed = `<?xml version="1.0" encoding="utf-8" ?><rss version="2.0"><channel><title>Bing: react hooks</title>
+<item><title>React Hooks &amp; Rules</title><link>https://react.dev/reference/react/hooks</link><description>&lt;b&gt;Hooks&lt;/b&gt; let you use state &#39;and&#39; more</description><pubDate>Thu, 05 Nov 2026 16:02:00 GMT</pubDate></item>
+<item><title><![CDATA[Hooks at a Glance]]></title><link><![CDATA[https://react.dev/learn]]></link><description><![CDATA[An overview of <i>Hooks</i>]]></description></item>
+<item><title>Third result</title><link>https://example.com/third</link><description></description><pubDate>not a date</pubDate></item>
+</channel></rss>`;
+
+const emptyRssFeed = '<?xml version="1.0" encoding="utf-8" ?><rss version="2.0"><channel><title>Bing: nothing</title></channel></rss>';
 
 function responseOf(body: string) {
   return {
@@ -138,7 +148,7 @@ describe('BingProvider', () => {
   });
 });
 
-describe('BingProvider http channel (mocked fetch)', () => {
+describe('BingProvider fetch channels (mocked fetch)', () => {
   let provider: any;
   let configMock: any;
   let configSnapshot: Record<string, unknown>;
@@ -199,6 +209,7 @@ describe('BingProvider http channel (mocked fetch)', () => {
     expect(params.has('setlang')).toBe(false);
     expect(params.has('cc')).toBe(false);
     expect(params.has('hl')).toBe(false);
+    expect(params.has('format')).toBe(false);
   });
 
   it('sends the same browser-like headers for any query language', async () => {
@@ -279,5 +290,92 @@ describe('BingProvider http channel (mocked fetch)', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429, statusText: 'Too Many Requests' }) as unknown as Response));
     const mod = await import('../../../src/search/providers/bing.js');
     await expect(new mod.BingProvider().doSearch('anything', dummyOptions)).rejects.toThrow('Bing returned 429');
+  });
+
+  it('uses the RSS channel when BING_FETCH_MODE=rss — one request, q + format only', async () => {
+    await setup(() => responseOf(rssFeed), (c) => {
+      c.BING_FETCH_MODE = 'rss';
+    });
+
+    const results = await provider.doSearch('react hooks', dummyOptions);
+
+    expect(calls).toHaveLength(1);
+    const params = new URL(searchCall().url).searchParams;
+    expect(params.get('q')).toBe('react hooks');
+    expect(params.get('format')).toBe('rss');
+    // Bing ignores count/first on format=rss — they are not sent at all.
+    expect(params.has('count')).toBe(false);
+    expect(params.has('first')).toBe(false);
+
+    expect(results).toHaveLength(3);
+    expect(provider.attempts[0]).toMatchObject({ mode: 'rss', page: 1, verdict: 'usable', results: 3 });
+  });
+
+  it('parses RSS items: CDATA, entities, destination links and pubDate', async () => {
+    await setup(() => responseOf(rssFeed), (c) => {
+      c.BING_FETCH_MODE = 'rss';
+    });
+
+    const results = await provider.doSearch('react hooks', dummyOptions);
+
+    expect(results[0]).toMatchObject({
+      title: 'React Hooks & Rules',
+      url: 'https://react.dev/reference/react/hooks',
+      snippet: "Hooks let you use state 'and' more",
+      published_date: '2026-11-05T16:02:00.000Z',
+      raw_position: 1,
+      provider: 'bing',
+    });
+
+    // CDATA wrapper is unwrapped, HTML in the description is stripped.
+    expect(results[1].title).toBe('Hooks at a Glance');
+    expect(results[1].url).toBe('https://react.dev/learn');
+    expect(results[1].snippet).toBe('An overview of Hooks');
+    expect(results[1].published_date).toBeUndefined();
+
+    // Unparseable pubDate is dropped, not fatal.
+    expect(results[2].published_date).toBeUndefined();
+  });
+
+  it('keeps the real destination URL instead of a bing.com tracking link', async () => {
+    await setup(() => responseOf(rssFeed), (c) => {
+      c.BING_FETCH_MODE = 'rss';
+    });
+
+    const results = await provider.doSearch('react hooks', dummyOptions);
+    for (const r of results) {
+      expect(r.url).not.toContain('bing.com/ck');
+      expect(r.url).toMatch(/^https:\/\//);
+    }
+  });
+
+  it('slices RSS results to max_results', async () => {
+    await setup(() => responseOf(rssFeed), (c) => {
+      c.BING_FETCH_MODE = 'rss';
+    });
+
+    const results = await provider.doSearch('react hooks', { ...dummyOptions, max_results: 2 });
+    expect(results).toHaveLength(2);
+    expect(results.map((r: { raw_position: number }) => r.raw_position)).toEqual([1, 2]);
+  });
+
+  it('reports an empty RSS feed as empty, not as an error', async () => {
+    await setup(() => responseOf(emptyRssFeed), (c) => {
+      c.BING_FETCH_MODE = 'rss';
+    });
+
+    const results = await provider.doSearch('zzzqqqxxy', dummyOptions);
+
+    expect(results).toEqual([]);
+    expect(provider.attempts[0]).toMatchObject({ mode: 'rss', verdict: 'empty' });
+    expect(provider.attempts[0].reason).toContain('no items');
+  });
+
+  it('surfaces a non-XML (block/captcha) RSS response as a provider error', async () => {
+    await setup(() => responseOf(captchaHtml), (c) => {
+      c.BING_FETCH_MODE = 'rss';
+    });
+
+    await expect(provider.doSearch('react hooks', dummyOptions)).rejects.toThrow('no XML');
   });
 });

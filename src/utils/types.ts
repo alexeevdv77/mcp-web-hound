@@ -241,7 +241,7 @@ export interface SearchLogEntry {
 // The single source for all configuration (zero-dependency).
 // FIELD_DEFS drives parsing, docs, configure-TUI and status help.
 
-export type FieldKind = 'string' | 'boolean' | 'number' | 'optional-string' | 'loglevel' | 'execmode';
+export type FieldKind = 'string' | 'boolean' | 'number' | 'optional-string' | 'loglevel' | 'execmode' | 'fetchmode';
 
 export interface FieldDef {
   key: string;
@@ -255,6 +255,7 @@ export interface Config {
   DB_FILENAME: string;
   DDG_ENABLED: boolean;
   BING_ENABLED: boolean;
+  BING_FETCH_MODE: 'html' | 'rss';
   STARTPAGE_ENABLED: boolean;
   BRAVE_WEB_ENABLED: boolean;
   BRAVE_API_KEY?: string;
@@ -326,6 +327,7 @@ export const FIELD_DEFS: FieldDef[] = [
   { key: 'DB_FILENAME', kind: 'string', default: 'search.db', description: 'SQLite database file name' },
   { key: 'DDG_ENABLED', kind: 'boolean', default: true, description: 'Enable DuckDuckGo search (free, no key)' },
   { key: 'BING_ENABLED', kind: 'boolean', default: true, description: 'Enable Bing search (free, no key)' },
+  { key: 'BING_FETCH_MODE', kind: 'fetchmode', default: 'html', description: 'Bing channel: html (paged SERP) or rss (one request, 10 items, real destination URLs)' },
   { key: 'STARTPAGE_ENABLED', kind: 'boolean', default: true, description: 'Enable Startpage / Google mirror (free, no key)' },
   { key: 'BRAVE_WEB_ENABLED', kind: 'boolean', default: true, description: 'Enable Brave Web HTML scrape (free, no key)' },
   { key: 'BRAVE_API_KEY', kind: 'optional-string', default: undefined, description: 'API key for Brave Search API (2000 queries/month free)' },
@@ -435,6 +437,12 @@ export function parseConfig(input: Record<string, unknown>): Config {
       case 'execmode':
         if (raw !== 'parallel' && raw !== 'sequential') {
           throw new Error(`Invalid PROVIDER_EXECUTION_MODE: ${String(raw)}`);
+        }
+        out[def.key] = raw;
+        break;
+      case 'fetchmode':
+        if (raw !== 'html' && raw !== 'rss') {
+          throw new Error(`Invalid BING_FETCH_MODE: ${String(raw)}`);
         }
         out[def.key] = raw;
         break;
