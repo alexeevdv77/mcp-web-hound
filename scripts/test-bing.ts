@@ -47,6 +47,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 
 const { BingProvider } = await import('../src/search/providers/bing.js');
 const { config } = await import('../src/utils/config.js');
+const { installEnvProxy } = await import('../src/utils/proxy.js');
+installEnvProxy();
 
 const provider = new BingProvider();
 

@@ -50,10 +50,11 @@
     "url": "git+https://github.com/alexeevdv77/mcp-web-hound.git"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.18.1"
   },
   "dependencies": {
-    "better-sqlite3": "12.11.1"
+    "better-sqlite3": "12.11.1",
+    "undici": "^7.30.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13",

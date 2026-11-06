@@ -22,6 +22,12 @@ import { buildProviderLimits, config } from '../utils/config.js';
 import { DATA_DIR } from '../utils/env-path.js';
 import { logger } from '../utils/logger.js';
 import { installParentWatchdog } from '../utils/parent-watchdog.js';
+import { installEnvProxy } from '../utils/proxy.js';
+
+// Provider searches run here, and Node's global fetch ignores the standard proxy
+// variables; config.ts above has already loaded the .env files. No variables ->
+// global dispatcher untouched.
+installEnvProxy();
 
 const MOCK = process.env.HOT_MOCK === '1';
 

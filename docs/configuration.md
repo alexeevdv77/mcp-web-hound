@@ -33,6 +33,35 @@ All settings via `.env` file or environment variables.
 | `DATA_DIR` | `~/.config/mcp-web-hound/data` | SQLite database directory (hardcoded) |
 | `DB_FILENAME` | `search.db` | Database file name |
 
+### HTTP Proxy
+
+The server honours the standard proxy variables. When any of them is set, the
+undici `EnvHttpProxyAgent` dispatcher is installed at startup and every outbound
+request goes through it — search providers, GitHub/GitLab tools, page fetches and
+model downloads in the hot worker.
+
+| Variable | Description |
+|----------|-------------|
+| `HTTP_PROXY` / `http_proxy` | Proxy for plain HTTP targets |
+| `HTTPS_PROXY` / `https_proxy` | Proxy for HTTPS targets; falls back to `HTTP_PROXY` when unset |
+| `NO_PROXY` / `no_proxy` | Hosts to reach directly — comma or space separated, `.example.com` / `*.example.com` and `host:port` forms are accepted, `*` disables proxying entirely |
+
+- Both spellings work, the lowercase one wins (undici precedence).
+- Set them in the real environment (the MCP client `env` block) **or** in the
+  server `.env` — the config loader puts `.env` into `process.env` before the
+  dispatcher is installed. `configure` does not manage these keys; edit the file
+  directly or use the client environment.
+- With no proxy variable set the global dispatcher is left untouched, so the
+  default behaviour is exactly as before.
+- HTTP(S) proxies only. `ALL_PROXY` is not read and SOCKS proxies are not
+  supported by `EnvHttpProxyAgent`.
+- When active the startup log carries one line:
+  `{"level":"info","proxy":"http://proxy.local:3128/","msg":"Proxy from environment"}` —
+  `user:pass@` inside the proxy URL is masked before logging.
+- Node 24 alternative: `NODE_USE_ENV_PROXY=1` gives the same effect without our
+  dispatcher. It does not exist on Node 20/22, so it is not what the package
+  relies on.
+
 ### Provider Order & Execution
 
 | Variable | Default | Description |

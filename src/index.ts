@@ -15,10 +15,17 @@ import type { SearchResponse } from './utils/types.js';
 import { serveMcp } from './mcp/server.js';
 import type { ToolDef } from './mcp/schemas.js';
 import { installParentWatchdog } from './utils/parent-watchdog.js';
+import { installEnvProxy } from './utils/proxy.js';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
+
+// Standard proxy variables (HTTP_PROXY / HTTPS_PROXY / NO_PROXY) are invisible
+// to Node's global fetch. config.ts above has already loaded both .env files, so
+// this is the earliest safe point to install the dispatcher; with no proxy
+// variables set the global dispatcher stays untouched.
+installEnvProxy();
 
 function pkgVersion(): string {
   try {

@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Standard proxy support: `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` (lowercase spellings too) now apply to every outbound request — providers, GitHub/GitLab tools, page fetches, model downloads. `installEnvProxy()` (`src/utils/proxy.ts`) installs the undici `EnvHttpProxyAgent` dispatcher in the main process, the hot worker and the manual provider scripts, and only when a proxy variable is set; without one the global dispatcher is untouched. The proxy URL is logged with credentials masked.
+- Dependency: `undici@^7` (runtime); `engines.node` raised to `>=20.18.1` (the floor for undici 7).
+- Tests: `tests/utils/proxy.test.ts` — variable detection and precedence, credential redaction, dispatcher installed vs left alone (11 tests).
+- Docs: "HTTP Proxy" section in `docs/configuration.md`, commented `HTTP_PROXY`/`NO_PROXY` block in `default.env`.
+
 ## [1.12.2] - 2026-10-30
 
 ### Fixed

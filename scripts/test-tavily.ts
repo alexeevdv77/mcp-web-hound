@@ -40,6 +40,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 
 const { TavilyProvider, TAVILY_DEFAULT_BASE_URL } = await import('../src/search/providers/tavily.js');
 const { config } = await import('../src/utils/config.js');
+const { installEnvProxy } = await import('../src/utils/proxy.js');
+installEnvProxy();
 
 const provider = new TavilyProvider();
 
