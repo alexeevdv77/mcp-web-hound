@@ -84,7 +84,13 @@ function preinstallModelStack() {
     console.warn('[prepare] Could not locate the global prefix; skipping the model stack pre-install');
     return;
   }
-  if (existsSync(join(globalRoot, MODEL_RUNTIME, 'package.json'))) return;
+  if (existsSync(join(globalRoot, MODEL_RUNTIME, 'package.json'))) {
+    // npm also runs `prepare` during the resolution stage, where its output is not
+    // shown. Without this line an install that pre-installed the stack in that first
+    // pass looks like the pre-install never happened.
+    console.log(`[prepare] Model stack already present in the install prefix (${globalRoot})`);
+    return;
+  }
 
   const spec = `${MODEL_RUNTIME}@${declaredModelRuntimeVersion()}`;
   console.log(`[prepare] Pre-installing the model stack (${spec}) into the install prefix`);

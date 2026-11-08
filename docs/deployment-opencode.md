@@ -35,6 +35,11 @@ subtree, npm can fail on `protobufjs`'s bundled CLI tree and then roll back ever
 dependency. With a copy already present at the prefix, npm dedupes to it and never
 extracts that tree. Skip it with `--omit=optional` or `MCP_SKIP_MODELS=1`.
 
+`npm warn tar TAR_ENTRY_ERROR … protobufjs\cli` lines may still print while npm inspects
+that tree during resolution. They are harmless now: the install keeps the stack, which
+`mcp-web-hound models status` confirms. Judge the install by that command, not by the
+warnings.
+
 If you hit `EPERM`/`ENOTEMPTY` while npm prepares the temporary clone, use
 `--install-links=true` or persist it once:
 
@@ -81,7 +86,10 @@ To see all available settings:
 npx mcp-web-hound configure --json get
 ```
 
-Startpage, DuckDuckGo, Brave Web, and Bing work without keys (HTML scraping).
+Startpage, DuckDuckGo, Brave Web, and Bing work without keys (HTML scraping). In practice
+DuckDuckGo and Bing carry that path: the other two scrape engines get captcha- or
+rate-limit-suspended often, and the server keeps them suspended for a while when that
+happens. `status` shows which engines are currently healthy.
 
 ## Register in OpenCode
 

@@ -165,7 +165,7 @@ model downloads in the hot worker.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEMANTIC_ENABLED` | `true` | Enable semantic cache (needs the ONNX stack; `--omit=optional` turns it off) |
+| `SEMANTIC_ENABLED` | `true` | Enable semantic cache (needs the ONNX stack; `--omit=optional` turns it off). The vector write currently fails on the sqlite-vec primary-key binding, so no near-duplicate query is ever served from it — see "Known issues" in `CHANGELOG.md` |
 | `EMBEDDING_MODEL` | `multilingual-e5-small` | Embedding model name |
 | `EMBEDDING_DIMENSION` | `384` | Vector dimension |
 | `SEMANTIC_THRESHOLD` | `0.92` | Similarity threshold for cache hit |
