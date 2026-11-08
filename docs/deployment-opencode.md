@@ -259,6 +259,13 @@ dedup and the NLI intent classifier (`nli_score` stays at its neutral `0.5`). Ch
 @xenova/transformers@2.17.2` — the global `node_modules` root is on the server's resolution
 path) or reinstall from the registry instead of Git, then re-check the two flags.
 
+The model files themselves are cached **inside the package**:
+`<npm global root>/mcp-web-hound/node_modules/@xenova/transformers/.cache` (~220 MB for the
+two default models — transformers.js defaults `cacheDir` to `<package>/.cache`, not the
+Hugging Face hub). A global reinstall deletes that directory, so the first search afterwards
+downloads the models again. With `MODEL_PRELOAD=false` they are not held in RAM until a
+search, and they are freed after `MODEL_IDLE_TIMEOUT_SEC` (5 s by default).
+
 ## Search Log Export
 
 If `SEARCH_LOG_ENABLED=true` is set, every `web_search` call is logged to the SQLite database.
