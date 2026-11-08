@@ -248,6 +248,17 @@ on the native tool list. `"websearch": false` or a `websearch` `deny` permission
 removes the competing tool — and with every tool of this server denied, OpenCode also stops
 injecting our search-protocol instructions.
 
+**Semantic dedup and NLI intent classification are off after a fresh install**  
+The model stack (`@xenova/transformers`, plus `sqlite-vec`) is an *optional* dependency, and
+npm can drop an optional dependency without failing the install when extracting it hits an
+error (`TAR_ENTRY_ERROR` in the npm log). The server still starts and searches: provider
+routing, caching, merging and heuristic reranking work; what is missing is embedding-based
+dedup and the NLI intent classifier (`nli_score` stays at its neutral `0.5`). Check with
+`npm ls -g @xenova/transformers` and `status` → `models` (`embedding_loaded`,
+`nli_loaded`). To get the stack, install it next to the server (`npm i -g
+@xenova/transformers@2.17.2` — the global `node_modules` root is on the server's resolution
+path) or reinstall from the registry instead of Git, then re-check the two flags.
+
 ## Search Log Export
 
 If `SEARCH_LOG_ENABLED=true` is set, every `web_search` call is logged to the SQLite database.

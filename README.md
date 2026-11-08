@@ -27,10 +27,6 @@ mcp-web-hound --help
 # Install straight from GitHub (prepare compiles dist/)
 npm i -g github:alexeevdv77/mcp-web-hound
 
-# Windows + npm 11: global Git installs need install-links while npm
-# prepares the temporary clone (avoids EPERM/ENOTEMPTY during reify).
-npm i -g github:alexeevdv77/mcp-web-hound --install-links=true
-
 # Fallback: npx, no install needed (extra ~90MB relay process)
 npx mcp-web-hound --help
 
@@ -39,9 +35,20 @@ npx mcp-web-hound --help
 mcp-web-hound configure
 ```
 
-The GitHub install runs `prepare` and builds `dist/` automatically. If the
-plain `github:` install fails on Windows, keep `--install-links=true` or set it
-once with `npm config set install-links true`.
+The GitHub install runs `prepare` and builds `dist/` automatically. If reify fails
+with `EPERM`/`ENOTEMPTY` (Windows + npm 11), add `--install-links=true`; check
+`npm config get install-links` first, it may already be on. The npm 11
+`allowScripts` warning is informational — `prepare` and the native `better-sqlite3`
+build still run.
+
+Two things a fresh install can hide, one command each:
+
+- `npm ls -g @xenova/transformers` — this is an *optional* dependency, and npm can
+  silently drop it while extracting (`TAR_ENTRY_ERROR`). The server still runs: semantic
+  dedup and NLI intent classification stay off (heuristic reranking works), and `status`
+  → `models` shows `embedding_loaded` / `nli_loaded` as `false`.
+- If an API provider is blocked or unreachable from your network, point it at a proxy you
+  control with `TAVILY_BASE_URL` / `EXA_BASE_URL` — see [docs/providers.md](docs/providers.md).
 
 ### Memory footprint (measured, Windows, Commit)
 
@@ -117,8 +124,9 @@ Bing answers through plain scraping of `/search?q=` — no cookie session, no lo
 |------|---------|
 | `web_search` | Universal web search (registered as `web_search`) with caching, reranking, and fallback across 8 providers |
 | `github_search` | Search GitHub repos, code, issues, and users |
-| `gitlab_search` | Search GitLab projects, issues, MRs, and code blobs |
-| `status` | Server diagnostics, provider health, budget state |
+| `gitlab_search` | Search GitLab projects, issues, MRs, and code blobs. Registered only when `GITLAB_TOKEN` is set |
+| `report_search_usage` | Record the agent's final answer against a search id (training data). Registered only when `SEARCH_LOG_ENABLED=true` |
+| `status` | Server diagnostics, provider health, budget state, model flags |
 
 ## Query Formats
 
@@ -138,7 +146,7 @@ web_search({
 })
 ```
 
-Returns merged results from healthy providers (parallel), deduplicated and reranked by relevance. Optimized for AI agents — one parameter, server-side intent detection.
+Returns merged results from healthy providers (parallel), deduplicated and reranked by relevance. Optimized for AI agents — one parameter, server-side intent detection. The result count is not a tool parameter: it is `MAX_RESULTS_AFTER_RERANK` (10 by default), and unknown arguments are ignored.
 
 ### `github_search`
 
