@@ -20,12 +20,15 @@ AI-generated issues will not be reviewed and will be closed immediately.
 ## Quick Start
 
 ```bash
-# Recommended: global install (single process, ~22MB cold)
+# Recommended: global install (single process, ~22MB cold, models included)
 npm i -g mcp-web-hound
 mcp-web-hound --help
 
-# Install straight from GitHub (prepare compiles dist/)
+# Install straight from GitHub (prepare compiles dist/ and brings the model stack)
 npm i -g github:alexeevdv77/mcp-web-hound
+
+# Lean install: no ONNX stack, no semantic dedup / NLI signal
+npm i -g github:alexeevdv77/mcp-web-hound --omit=optional
 
 # Fallback: npx, no install needed (extra ~90MB relay process)
 npx mcp-web-hound --help
@@ -35,20 +38,23 @@ npx mcp-web-hound --help
 mcp-web-hound configure
 ```
 
-The GitHub install runs `prepare` and builds `dist/` automatically. If reify fails
-with `EPERM`/`ENOTEMPTY` (Windows + npm 11), add `--install-links=true`; check
-`npm config get install-links` first, it may already be on. The npm 11
+The GitHub install runs `prepare`, builds `dist/` and pre-installs the optional ONNX
+stack (`@xenova/transformers`) into the install prefix — that also sidesteps an npm 11 +
+Windows bug where extracting `protobufjs`'s bundled CLI tree makes npm roll back every
+optional dependency. If reify fails with `EPERM`/`ENOTEMPTY`, add `--install-links=true`;
+check `npm config get install-links` first, it may already be on. The npm 11
 `allowScripts` warning is informational — `prepare` and the native `better-sqlite3`
 build still run.
 
-Two things a fresh install can hide, one command each:
+Model weights live in a shared cache, `~/.cache/huggingface/transformers-js`
+(`$HF_HOME/transformers-js` when `HF_HOME` is set; override with `MODEL_CACHE_DIR`), so
+reinstalls and other transformers.js tools reuse them instead of downloading again.
 
-- `npm ls -g @xenova/transformers` — this is an *optional* dependency, and npm can
-  silently drop it while extracting (`TAR_ENTRY_ERROR`). The server still runs: semantic
-  dedup and NLI intent classification stay off (heuristic reranking works), and `status`
-  → `models` shows `embedding_loaded` / `nli_loaded` as `false`.
-- If an API provider is blocked or unreachable from your network, point it at a proxy you
-  control with `TAVILY_BASE_URL` / `EXA_BASE_URL` — see [docs/providers.md](docs/providers.md).
+`mcp-web-hound models status` shows the stack and the cache; `models install` repairs a
+missing stack; `models download` prefetches the weights.
+
+If an API provider is blocked or unreachable from your network, point it at a proxy you
+control with `TAVILY_BASE_URL` / `EXA_BASE_URL` — see [docs/providers.md](docs/providers.md).
 
 ### Memory footprint (measured, Windows, Commit)
 

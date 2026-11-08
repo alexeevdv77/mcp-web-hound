@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger.js';
+import { loadModelRuntime } from '../embeddings/model-runtime.js';
 
 type Intent = 'web' | 'docs' | 'github' | 'news';
 
@@ -242,7 +243,7 @@ export class IntentClassifier {
   private async init(): Promise<void> {
     try {
       logger.info({ model: this.modelName }, 'Loading NLI model for intent classification');
-      const { pipeline } = await import('@xenova/transformers');
+      const { pipeline } = await loadModelRuntime();
       this.classifier = (await pipeline('zero-shot-classification', this.modelName)) as unknown as Pipeline;
       logger.info({ model: this.modelName }, 'NLI model loaded');
     } catch (err) {

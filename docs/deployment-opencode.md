@@ -19,14 +19,21 @@ mcp-web-hound --help
 
 ## Quick Install (from Git)
 
-Installs from the GitHub repository and compiles `dist/` during `prepare`:
+Installs from the GitHub repository, compiles `dist/` during `prepare` and pre-installs
+the optional ONNX stack into the install prefix:
 
 ```bash
 npm i -g github:alexeevdv77/mcp-web-hound
+mcp-web-hound models status
 
-# Windows + npm 11 workaround for npm's global git-dependency bug
-npm i -g github:alexeevdv77/mcp-web-hound --install-links=true
+# Lean install: no ONNX stack (no semantic dedup, no NLI signal)
+npm i -g github:alexeevdv77/mcp-web-hound --omit=optional
 ```
+
+The pre-install is what keeps the model stack in place: while extracting the optional
+subtree, npm can fail on `protobufjs`'s bundled CLI tree and then roll back every optional
+dependency. With a copy already present at the prefix, npm dedupes to it and never
+extracts that tree. Skip it with `--omit=optional` or `MCP_SKIP_MODELS=1`.
 
 If you hit `EPERM`/`ENOTEMPTY` while npm prepares the temporary clone, use
 `--install-links=true` or persist it once:
@@ -249,22 +256,22 @@ removes the competing tool — and with every tool of this server denied, OpenCo
 injecting our search-protocol instructions.
 
 **Semantic dedup and NLI intent classification are off after a fresh install**  
-The model stack (`@xenova/transformers`, plus `sqlite-vec`) is an *optional* dependency, and
-npm can drop an optional dependency without failing the install when extracting it hits an
-error (`TAR_ENTRY_ERROR` in the npm log). The server still starts and searches: provider
-routing, caching, merging and heuristic reranking work; what is missing is embedding-based
-dedup and the NLI intent classifier (`nli_score` stays at its neutral `0.5`). Check with
-`npm ls -g @xenova/transformers` and `status` → `models` (`embedding_loaded`,
-`nli_loaded`). To get the stack, install it next to the server (`npm i -g
-@xenova/transformers@2.17.2` — the global `node_modules` root is on the server's resolution
-path) or reinstall from the registry instead of Git, then re-check the two flags.
+`@xenova/transformers` is an optional dependency: `--omit=optional` leaves it out on
+purpose, a Git install pre-installs it into the prefix, and a registry install brings it as
+a normal optional dependency. Without it the server still starts and searches: provider
+routing, caching, merging and heuristic reranking work; embedding-based dedup and the NLI
+intent classifier stay off (`nli_score` stays at its neutral `0.5`). `mcp-web-hound models
+status` shows whether the stack is available; `models install` installs it next to the
+server, `models download` prefetches the weights.
 
-The model files themselves are cached **inside the package**:
-`<npm global root>/mcp-web-hound/node_modules/@xenova/transformers/.cache` (~220 MB for the
-two default models — transformers.js defaults `cacheDir` to `<package>/.cache`, not the
-Hugging Face hub). A global reinstall deletes that directory, so the first search afterwards
-downloads the models again. With `MODEL_PRELOAD=false` they are not held in RAM until a
-search, and they are freed after `MODEL_IDLE_TIMEOUT_SEC` (5 s by default).
+Model weights live in a shared cache, `~/.cache/huggingface/transformers-js`
+(`$HF_HOME/transformers-js` when `HF_HOME` is set, `MODEL_CACHE_DIR` overrides). The layout
+is transformers.js v2's `<cache>/<org>/<model>/`, not the Python HF hub `models--` layout —
+other transformers.js tools pointed at the same directory share the files, Python HF
+tooling does not. On the first run weights left in an older in-package `.cache` are copied
+over automatically, so a reinstall does not download them again. With `MODEL_PRELOAD=false`
+they are not held in RAM until a search, and they are freed after `MODEL_IDLE_TIMEOUT_SEC`
+(5 s by default).
 
 ## Search Log Export
 
@@ -290,7 +297,9 @@ node --version
 ```
 
 **Semantic cache disabled**  
-Semantic search (`SEMANTIC_ENABLED=true`) requires `@xenova/transformers` (~120MB download on first use). Installed as optional dependency.
+Semantic search (`SEMANTIC_ENABLED=true`) needs `@xenova/transformers` and the model
+weights. Check `mcp-web-hound models status`; `models install` adds the stack and `models
+download` fetches the weights into the shared cache.
 
 **Instructions not appearing in agent context**  
 Check your OpenCode version: `opencode --version`. If < 1.17.10, use the manual `search-protocol.md` method above.

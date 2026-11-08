@@ -52,6 +52,7 @@ Usage:
   npx mcp-web-hound configure --json get     List all settings (machine-readable)
   npx mcp-web-hound configure --json set KEY=VAL  Set config values
   npx mcp-web-hound export-logs         Export search logs (training dataset)
+  npx mcp-web-hound models              Model stack + shared model cache status
   npx mcp-web-hound --help              Show this help
 
 Configuration:
@@ -91,6 +92,12 @@ async function main(): Promise<void> {
   if (args[0] === 'export-logs') {
     const { main: exportLogsMain } = await import('./cli/export-logs.js');
     exportLogsMain(args.slice(1));
+    return;
+  }
+
+  if (args[0] === 'models') {
+    const { main: modelsMain } = await import('./cli/models.js');
+    await modelsMain(args.slice(1));
     return;
   }
 

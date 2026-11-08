@@ -287,6 +287,7 @@ export interface Config {
   MODEL_IDLE_TIMEOUT_SEC: number;
   MODEL_WORKER: boolean;
   MODEL_PRELOAD: boolean;
+  MODEL_CACHE_DIR: string;
   RERANK_ENABLED: boolean;
   SEARCH_LOG_ENABLED: boolean;
   SESSION_DEDUP_WINDOW_MINUTES: number;
@@ -372,6 +373,7 @@ export const FIELD_DEFS: FieldDef[] = [
   { key: 'MODEL_IDLE_TIMEOUT_SEC', kind: 'number', default: 5, description: 'Unload hot worker (DB/vec/router/models) after N seconds idle (0 = never unload, hot start ~1-2s)' },
   { key: 'MODEL_WORKER', kind: 'boolean', default: true, description: 'Run ONNX models in a private child process killed on idle (OS fully reclaims RAM)' },
   { key: 'MODEL_PRELOAD', kind: 'boolean', default: false, description: 'Preload embedding model at startup (true = hot start, false = lazy cold start)' },
+  { key: 'MODEL_CACHE_DIR', kind: 'string', default: '', description: 'Shared ONNX model cache (empty = ~/.cache/huggingface/transformers-js; HF_HOME/XDG_CACHE_HOME are honoured)' },
   { key: 'RERANK_ENABLED', kind: 'boolean', default: true, description: 'Enable cross-encoder reranking for result relevance' },
   { key: 'SEARCH_LOG_ENABLED', kind: 'boolean', default: false, description: 'Log search queries, candidates, and reranker scores for ML training dataset' },
   { key: 'SESSION_DEDUP_WINDOW_MINUTES', kind: 'number', default: 5, description: 'Window in minutes for deduplicating identical queries' },

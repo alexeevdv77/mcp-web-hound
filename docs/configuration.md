@@ -165,13 +165,14 @@ model downloads in the hot worker.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEMANTIC_ENABLED` | `false` | Enable semantic cache (requires ~120MB model) |
+| `SEMANTIC_ENABLED` | `true` | Enable semantic cache (needs the ONNX stack; `--omit=optional` turns it off) |
 | `EMBEDDING_MODEL` | `multilingual-e5-small` | Embedding model name |
 | `EMBEDDING_DIMENSION` | `384` | Vector dimension |
 | `SEMANTIC_THRESHOLD` | `0.92` | Similarity threshold for cache hit |
 | `MODEL_IDLE_TIMEOUT_SEC` | `5` | Kill hot worker after N sec idle (0 = never; hot start ~1-2s, first semantic search loads models) |
 | `MODEL_PRELOAD` | `false` | Preload hot worker at startup (true = hot start, false = lazy cold start) |
 | `MODEL_WORKER` | `true` | Legacy flag, kept for compat; the hot worker always hosts models in-process |
+| `MODEL_CACHE_DIR` | `~/.cache/huggingface/transformers-js` | Shared model cache (`HF_HOME`/`XDG_CACHE_HOME` are honoured when this is empty) |
 
 ### Intent Classification & Reranking
 

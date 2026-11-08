@@ -1,5 +1,6 @@
 import { config } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
+import { loadModelRuntime, normalizeModelId } from './model-runtime.js';
 
 type FeatureExtractionPipeline = {
   (texts: string | string[], options?: { pooling?: string; normalize?: boolean }): Promise<{
@@ -21,7 +22,7 @@ export class EmbeddingService {
 
   constructor(idleTimeoutMs?: number) {
     const model = config.EMBEDDING_MODEL;
-    this.modelId = model.startsWith('Xenova/') || model.startsWith('Xenova') ? model : `Xenova/${model}`;
+    this.modelId = normalizeModelId(model);
     this.idleTimeoutMs = idleTimeoutMs ?? config.MODEL_IDLE_TIMEOUT_SEC * 1000;
   }
 
@@ -90,7 +91,7 @@ export class EmbeddingService {
     try {
       logger.info({ model: this.modelId }, 'Loading embedding model');
 
-      const { pipeline } = await import('@xenova/transformers');
+      const { pipeline } = await loadModelRuntime();
 
       this.pipeline = (await pipeline(
         'feature-extraction',

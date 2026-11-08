@@ -3,6 +3,7 @@ import { ENV_PATH } from '../utils/env-path.js';
 import { logger } from '../utils/logger.js';
 import { FIELD_DEFS } from '../utils/types.js';
 import { maskSecretValue } from '../utils/config-help.js';
+import { isModelStackAvailable, resolveModelCacheDir } from '../embeddings/model-runtime.js';
 import type { HotStatusResult } from '../hot/protocol.js';
 import type { ToolDef } from '../mcp/schemas.js';
 import { readFileSync } from 'node:fs';
@@ -63,6 +64,9 @@ export function makeStatusTool(
         const hot = await statusFn();
 
         const configModel = `2-tier: server .env (${ENV_PATH}) + optional project .env overrides. Agents use configure --json set. NEVER write to project .env.`;
+        const modelStackAvailable = isModelStackAvailable();
+        const modelCacheDir = resolveModelCacheDir();
+        const embeddingModelEnabled = config.SEMANTIC_ENABLED && modelStackAvailable;
 
         return {
           content: [
@@ -78,10 +82,17 @@ export function makeStatusTool(
                     fetches_remaining: hot.budget.fetches_remaining,
                     budget_window: `${config.BUDGET_WINDOW_MINUTES} minutes`,
                   },
-                  embedding_model: config.SEMANTIC_ENABLED ? config.EMBEDDING_MODEL : 'disabled',
+                  embedding_model: embeddingModelEnabled ? config.EMBEDDING_MODEL : 'disabled',
+                  model_stack: {
+                    available: modelStackAvailable,
+                    cache_dir: modelCacheDir,
+                    embedding_model: embeddingModelEnabled ? config.EMBEDDING_MODEL : 'disabled',
+                    nli_model: modelStackAvailable ? config.INTENT_CLASSIFIER_MODEL : 'disabled',
+                  },
                   models: {
                     embedding_loaded: hot.models.embedding_loaded,
                     nli_loaded: hot.models.nli_loaded,
+                    cache_dir: modelCacheDir,
                     idle_timeout_sec: config.MODEL_IDLE_TIMEOUT_SEC,
                     preload: config.MODEL_PRELOAD,
                     worker_mode: worker?.mode ?? 'hot',
