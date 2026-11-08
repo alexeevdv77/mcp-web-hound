@@ -32,4 +32,4 @@
 
 15. **Recommended configuration, not a flag tour.** Config sections show one recommended example block and keep the same short version in `README.md`; a flag that is not in the recommendation gets one sentence — why it exists and what it changes overall. No exhaustive matrices of modes and flags.
 
-16. **No private endpoints in the repository.** Real proxy/relay addresses, tokens and keys never go into any committed file (docs, code, tests, commit messages) — placeholders only (`https://proxy.example.com`, `<project-ref>`). Agents write only to the server `.env`.
+16. **No private endpoints in the repository.** Real proxy/relay addresses, tokens and keys never go into any committed file (docs, code, tests, commit messages) — placeholders only (`https://proxy.example.com`, `<project-ref>`). Agents write only to the server `.env`. They do **not** need to be masked in local tool output (`configure`, `status`): the invariant is that they never leave the machine where they are set — no commits, no issues, no published logs or transcripts.

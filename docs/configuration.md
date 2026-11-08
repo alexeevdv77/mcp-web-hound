@@ -21,10 +21,11 @@ npx mcp-web-hound configure --json set KEY=VALUE    # Set one or more values
 npx mcp-web-hound configure --help                 # Full help
 ```
 
-API keys come back masked (`abcd****wxyz`), but endpoint overrides do not:
-`TAVILY_BASE_URL` / `EXA_BASE_URL` are printed verbatim by `configure --json get` and
-inside the `config_help` block of the `status` tool. If those point at a relay you run,
-treat that output as sensitive — do not paste it into a chat, an issue or a commit.
+API keys come back masked (`abcd****wxyz`); endpoint overrides (`TAVILY_BASE_URL` /
+`EXA_BASE_URL`) are shown verbatim by `configure --json get` and in the `config_help`
+block of the `status` tool. Masking them is not required — the invariant is that a relay
+address never leaves the machine where it is set: no commits, no issues, no pasted
+transcripts or logs.
 
 ## Environment Variables
 
