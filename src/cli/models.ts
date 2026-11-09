@@ -16,6 +16,42 @@ import {
 
 const isWindows = process.platform === 'win32';
 
+/**
+ * A model is fetched over many requests (config, tokenizer, weights) and
+ * transformers.js loads the tokenizer and the weights in parallel. One
+ * transient proxy/network hiccup therefore fails the whole model, so every
+ * model gets a few attempts with a growing pause before it is reported failed.
+ */
+const DOWNLOAD_ATTEMPTS = 3;
+const DOWNLOAD_RETRY_BASE_MS = 1_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function fetchModelWithRetry(
+  runtime: Awaited<ReturnType<typeof loadModelRuntime>>,
+  target: { task: string; id: string },
+): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await runtime.pipeline(target.task, target.id);
+      return;
+    } catch (err) {
+      if (attempt >= DOWNLOAD_ATTEMPTS) throw err;
+      const delayMs = DOWNLOAD_RETRY_BASE_MS * 2 ** (attempt - 1);
+      stderr.write(
+        `${target.id}: attempt ${attempt}/${DOWNLOAD_ATTEMPTS} failed — ${errorMessage(err)}; retrying in ${(delayMs / 1000).toFixed(1)}s\n`,
+      );
+      await sleep(delayMs);
+    }
+  }
+}
+
 function printHelp(): void {
   stdout.write(`
 MCP Web Hound — Model Stack Tool
@@ -145,10 +181,10 @@ async function downloadModels(force: boolean): Promise<number> {
     stdout.write(`${target.id}: downloading…\n`);
     const started = Date.now();
     try {
-      await runtime.pipeline(target.task, target.id);
+      await fetchModelWithRetry(runtime, target);
     } catch (err) {
       failures += 1;
-      stderr.write(`${target.id}: failed — ${err instanceof Error ? err.message : String(err)}\n`);
+      stderr.write(`${target.id}: failed — ${errorMessage(err)}\n`);
       continue;
     }
     const after = inspectModelCache(target.id, cacheDir);

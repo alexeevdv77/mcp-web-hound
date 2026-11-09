@@ -67,6 +67,9 @@ model downloads in the hot worker.
 - Node 24 alternative: `NODE_USE_ENV_PROXY=1` gives the same effect without our
   dispatcher. It does not exist on Node 20/22, so it is not what the package
   relies on.
+- The proxy hop gets a 30 s connect timeout (undici's default is 10 s), and
+  `models download` retries each model three times, so a briefly saturated proxy
+  does not turn one dropped connection into a failed model.
 
 ### Provider Order & Execution
 

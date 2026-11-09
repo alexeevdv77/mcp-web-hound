@@ -15,6 +15,7 @@ const runtime = vi.hoisted(() => ({
   cache: new Map<string, CacheInfo>(),
   spawnResult: { status: 0 } as { status: number | null },
   pipelineModels: [] as string[],
+  pipelineFailures: 0,
 }));
 
 vi.mock('../../src/embeddings/model-runtime.js', async (importOriginal) => {
@@ -36,6 +37,8 @@ vi.mock('../../src/embeddings/model-runtime.js', async (importOriginal) => {
     loadModelRuntime: async () => ({
       pipeline: async (_task: string, modelId: string) => {
         runtime.pipelineModels.push(modelId);
+        const attempts = runtime.pipelineModels.filter((id) => id === modelId).length;
+        if (attempts <= runtime.pipelineFailures) throw new Error('fetch failed');
         return () => [];
       },
     }),
@@ -74,6 +77,7 @@ beforeEach(() => {
   runtime.cache = new Map();
   runtime.spawnResult = { status: 0 };
   runtime.pipelineModels = [];
+  runtime.pipelineFailures = 0;
   process.exitCode = 0;
   out = [];
   err = [];
@@ -205,6 +209,46 @@ describe('models download', () => {
     await main(['download', '--force']);
     expect(runtime.pipelineModels).toEqual([EMBEDDING, NLI]);
     expect(process.exitCode).toBe(0);
+  });
+
+  it('retries a transient download failure before giving up', async () => {
+    runtime.available = true;
+    cached(NLI, 2048);
+    runtime.pipelineFailures = 2;
+
+    vi.useFakeTimers();
+    try {
+      const run = main(['download']);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await run;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(runtime.pipelineModels).toEqual([EMBEDDING, EMBEDDING, EMBEDDING]);
+    expect(stderrOf()).toContain('attempt 1/3 failed — fetch failed');
+    expect(stderrOf()).toContain('attempt 2/3 failed — fetch failed');
+    expect(stdoutOf()).toContain('ready');
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('reports a model that keeps failing after every attempt', async () => {
+    runtime.available = true;
+    cached(NLI, 2048);
+    runtime.pipelineFailures = 3;
+
+    vi.useFakeTimers();
+    try {
+      const run = main(['download']);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await run;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(runtime.pipelineModels).toEqual([EMBEDDING, EMBEDDING, EMBEDDING]);
+    expect(stderrOf()).toContain(`${EMBEDDING}: failed — fetch failed`);
+    expect(process.exitCode).toBe(1);
   });
 });
 

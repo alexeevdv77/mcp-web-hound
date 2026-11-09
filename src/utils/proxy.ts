@@ -13,6 +13,15 @@ import { logger } from './logger.js';
  */
 const PROXY_VARS = ['https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY'] as const;
 
+/**
+ * undici's default connect timeout is 10 s. A proxy that is briefly saturated
+ * (for example while a large model file is streaming through it) can exceed
+ * that, surfacing as `UND_ERR_CONNECT_TIMEOUT` / `fetch failed` even though the
+ * proxy is reachable. A longer timeout rides out those spikes; a genuinely
+ * unreachable proxy still fails, just later.
+ */
+export const PROXY_CONNECT_TIMEOUT_MS = 30_000;
+
 /** First non-empty proxy value from the environment, or undefined when none is set. */
 export function proxyUrlFromEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
   for (const key of PROXY_VARS) {
@@ -47,7 +56,7 @@ export function installEnvProxy(): boolean {
   if (!proxy) return false;
 
   try {
-    setGlobalDispatcher(new EnvHttpProxyAgent());
+    setGlobalDispatcher(new EnvHttpProxyAgent({ connectTimeout: PROXY_CONNECT_TIMEOUT_MS }));
     logger.info(
       { proxy: redactProxyUrl(proxy), no_proxy: (process.env.no_proxy ?? process.env.NO_PROXY ?? '').trim() },
       'Proxy from environment',

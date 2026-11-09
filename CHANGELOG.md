@@ -30,6 +30,7 @@
 
 ### Fixed
 
+- `models download` no longer marks a whole model as failed on one transient proxy/network hiccup: each model now gets three attempts with a 1 s / 2 s backoff, and `installEnvProxy()` passes a 30 s `connectTimeout` to undici's `EnvHttpProxyAgent` instead of its 10 s default. Before this, a single `UND_ERR_CONNECT_TIMEOUT` on any file (config, tokenizer or weights) surfaced as `<model>: failed — fetch failed` even though the proxy was reachable and a rerun completed the download.
 - `npm i -g github:…` silently dropped the whole optional subtree (`@xenova/transformers`, `sharp`, `onnxruntime-*`): extracting `protobufjs`'s bundled CLI tree fails, and npm then rolls back every optional dependency. `prepare` now pre-installs `@xenova/transformers` at the target prefix, where npm dedupes to it instead of extracting that tree. Reproduction variants and the shape of the failure are recorded in `docs/roadmap.md`; the registry install was never affected.
 - `status` reported `embedding_model` from the config even when `@xenova/transformers` was not installed, so a machine without the model stack looked healthy. It now answers `disabled` with `model_stack.available: false`.
 - `docs/configuration.md` claimed `SEMANTIC_ENABLED` defaults to `false`; the default is `true`.

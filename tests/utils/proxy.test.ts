@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnvHttpProxyAgent, getGlobalDispatcher, setGlobalDispatcher } from 'undici';
-import { installEnvProxy, proxyUrlFromEnv, redactProxyUrl } from '../../src/utils/proxy.js';
+import { installEnvProxy, PROXY_CONNECT_TIMEOUT_MS, proxyUrlFromEnv, redactProxyUrl } from '../../src/utils/proxy.js';
 
 const PROXY_KEYS = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'no_proxy', 'NO_PROXY'];
 
@@ -79,5 +79,9 @@ describe('installEnvProxy', () => {
     vi.stubEnv('NO_PROXY', 'localhost');
     expect(installEnvProxy()).toBe(false);
     expect(getGlobalDispatcher()).toBe(originalDispatcher);
+  });
+
+  it('allows more than undici\'s 10 s default for the proxy connect', () => {
+    expect(PROXY_CONNECT_TIMEOUT_MS).toBeGreaterThan(10_000);
   });
 });
