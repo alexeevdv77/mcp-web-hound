@@ -94,22 +94,24 @@ BRAVE_WEB_ENABLED=true
 | Key | Not required |
 | Intents | web |
 
-**Channel:** paged scraping of `/search?q=` — the request carries `q`, `count` and `first` and nothing else, so there is no session state and no warm-up request. Fast (~0.2 s), no dependencies.
-
-**RSS channel (`BING_FETCH_MODE=rss`):** the same endpoint with `format=rss` returns an RSS 2.0 feed — one request, at most 10 items, no paging (`count` and `first` are ignored by the feed) — with the real destination URL in `<link>` instead of a `bing.com/ck/a` tracking wrapper, plus `title`, `description` and `pubDate`. Relevance is the same as the HTML channel — the feed does not fix the junk problem described below, although it does read out whatever Bing has warmed for the string — so it is a cheaper structural channel, not a better one. Measurements behind these statements: `docs/roadmap.md`.
-
-> **Parked: the headless-Chrome channel.** A second channel that typed the query into Bing's search box over CDP lives on the `bing-browser-mode` branch and is not shipped: hiding the `HeadlessChrome` token also drops Chrome's Client Hints, and Bing then answers with a page that has **no results container** at all. Headless Chrome, however it is driven, gets the degraded SERP for a query that has not been searched before and cannot warm Bing's own cache — only a submit from a non-headless Chrome's search box does. Details and the measurements behind this: `docs/roadmap.md`. The channel stays on the branch until that is solved.
-
 **Features:**
 - Free, no registration
-- Query sent verbatim (UTF-8 percent-encoded) — works for any language, no transliteration
 - Headers are constant and browser-like (`Chrome/131` UA, `Accept-Language: en-US,en;q=0.9`); deriving them from the query language or dropping them changes nothing
 - No market params (`mkt`/`setlang`/`cc`). Upstream SearXNG replaced `mkt` with `setlang=` + `cc=` for this engine and skips `us|cn|ru` ("bing just sends junk for these"), but no combination of these parameters changes the result set from an IP that Bing has already associated with a market — see the Bing bullets in `docs/roadmap.md`
-- No cookie session and no homepage warm-up request: cookie-less scraping gets the same SERP, so the extra request was dropped
+- No cookie session and no homepage warm-up request: cookie-less scraping gets the same SERP
 - Two channels behind `BING_FETCH_MODE`: `html` (paged SERP, default) and `rss` (single request, ≤10 items, real destination URLs; `BING_RESULTS_PER_PAGE`/`BING_MAX_PAGES` do not apply)
 - Parses `b_algo` blocks from HTML results page
 - Different index from DDG — expands coverage
 - 1s between requests via slot reservation, so parallel tool calls don't fire simultaneously (that burst is what triggers contentless SERPs)
+
+> **⚠️ Undocumented limits.** Bing does not publish scraping limits and may return captcha under high request frequency. Quality is IP-, query- **and client**-dependent: for a multi-word string the plain-HTTP channel can return what the *first word* alone would return, while the same string submitted from a non-headless browser's search box comes back relevant — and stays warm on that IP for every later client, headless or not. No header, cookie or parameter changes this, so the provider cannot fix it on its own: Startpage/DDG stay in the chain and the merge is reranked. The measurements and the log names are in the 2026-11-06 bullets of `docs/roadmap.md`.
+
+**HTML Channel:** paged scraping of `/search?q=` — the request carries `q`, `count` and `first` and nothing else, so there is no session state and no warm-up request.
+
+**RSS channel (`BING_FETCH_MODE=rss`):** the same endpoint with `format=rss` returns an RSS 2.0 feed — one request, at most 10 items, no paging (`count` and `first` are ignored by the feed) — with the real destination URL in `<link>` instead of a `bing.com/ck/a` tracking wrapper, plus `title`, `description` and `pubDate`. Relevance is the same as the HTML channel — the feed does not fix the junk problem described. It is a cheaper structural channel, not a better one. Measurements behind these statements: `docs/roadmap.md`.
+
+> **Parked: the headless-Chrome channel.** A second channel that typed the query into Bing's search box over CDP lives on the `bing-browser-mode` branch and is not shipped: hiding the `HeadlessChrome` token also drops Chrome's Client Hints, and Bing then answers with a page that has **no results container** at all. Headless Chrome, however it is driven, gets the degraded SERP for a query that has not been searched before and cannot warm Bing's own cache — only a submit from a non-headless Chrome's search box does. Details and the measurements behind this: `docs/roadmap.md`. The channel stays on the branch until that is solved.
+
 
 **Response checks — structural only:**
 
@@ -123,9 +125,6 @@ BRAVE_WEB_ENABLED=true
 | RSS response is not XML (captcha/block page) | provider error → same suspension policy as any other block |
 | RSS feed carries no `<item>` | empty result set → same handling as a `b_no` page |
 
-**What is deliberately *not* done:** the SERP is not scored for relevance. Text-overlap heuristics misjudge too many legitimate result sets (they reject good pages and accept plausible junk). If Bing answers a query badly, the other providers in the same merge compensate — the merged answer is reranked anyway.
-
-> **⚠️ Undocumented limits.** Bing does not publish scraping limits and may return captcha under high request frequency. Quality is IP-, query- **and client**-dependent: for a multi-word string the plain-HTTP channel can return what the *first word* alone would return, while the same string submitted from a non-headless browser's search box comes back relevant — and stays warm on that IP for every later client, headless or not. No header, cookie or parameter changes this, so the provider cannot fix it on its own: Startpage/DDG stay in the chain and the merge is reranked. The measurements and the log names are in the 2026-11-06 bullets of `docs/roadmap.md`.
 
 **Configuration:**
 ```env
@@ -178,7 +177,7 @@ TAVILY_DAILY_LIMIT=30
 TAVILY_BASE_URL=https://api.tavily.com
 ```
 
-**Endpoint override:** `TAVILY_BASE_URL` is the origin of the API or of a proxy in front of it. `/search` is appended automatically, so `https://proxy.example.com` and `https://proxy.example.com/search` both work; a trailing slash is ignored and an empty value falls back to `https://api.tavily.com`. The provider authenticates with `api_key` inside the JSON body (as before), so the proxy only has to forward the POST body — `npm run test:tavily` prints which endpoint was used and what came back. Use it when the stock origin is blocked or unreachable from your network: a proxy you run restores the call, and the credential stays on this side. A ready-to-deploy proxy is documented in [Tavily through a Cloudflare Worker](tavily-proxy-worker.md): a ~60-line Worker that forwards path, body and headers to `api.tavily.com`, keeps no credential on the Worker side and strips the upstream `content-encoding` that otherwise makes clients hang.
+**Endpoint override:** `TAVILY_BASE_URL` is the origin of the API or of a proxy in front of it. `/search` is appended automatically, so `https://proxy.example.com` and `https://proxy.example.com/search` both work; a trailing slash is ignored and an empty value falls back to `https://api.tavily.com`. The provider authenticates with `api_key` inside the JSON body (as before), so the proxy only has to forward the POST body — `npm run test:tavily` prints which endpoint was used and what came back. Use it when the stock origin is blocked or unreachable from your network: a proxy you run restores the call, and the credential stays on this side. A ready-to-deploy proxy is documented in [Tavily through a Cloudflare Worker](tavily-proxy-worker.md).
 
 ---
 
@@ -201,9 +200,9 @@ EXA_BASE_URL=https://api.exa.ai
 
 **Endpoint override:** `EXA_BASE_URL` is the origin of the API or of a proxy in front of it. `/search` is appended automatically, so a proxy mounted under a path works too — `https://proxy.example.com/functions/v1/exa-api` and `https://proxy.example.com/functions/v1/exa-api/search` both resolve to the same call; a trailing slash is ignored and an empty value falls back to `https://api.exa.ai`. Unlike Tavily, Exa authenticates with the **`x-api-key` header**, so a relay has to forward headers as well as the JSON body. Use the override when `api.exa.ai` is blocked or unreachable from your network; `npm run test:exa` prints the resolved endpoint, the HTTP status and the results.
 
-**What a relay must do:** accept `POST {base}/search` with `content-type: application/json`, pass the body (`query`, `type`, `num_results`, `contents`, …) and the `x-api-key` header through unchanged, and return Exa's own JSON — `results[]` with `title`, `url`, `highlights`/`text`, `publishedDate`. The documented relay rejects a call without the header: `401 {"error":"x-api-key header is missing."}`. Keep your relay address out of this repository — placeholders only, same rule as in [Tavily through a Cloudflare Worker](tavily-proxy-worker.md). The script, the deploy steps (`verify_jwt = false` matters) and the limits are in [Exa through a Supabase Edge Function](exa-proxy-edge-function.md).
+**What a relay must do:** accept `POST {base}/search` with `content-type: application/json`, pass the body and the `x-api-key` header through unchanged, and return Exa's own JSON. A ready-to-deploy proxy is documented in [Exa through a Supabase Edge Function](exa-proxy-edge-function.md).
 
-**Snippets come from `contents.highlights`.** The provider asks for `{ contents: { highlights: true } }` and joins the passages Exa selected for each page, cutting the result to `EXA_SNIPPET_MAX_CHARS` = 600 characters (whitespace collapsed). For scale on a ~10-result query: an answer without `contents` is a couple of KB and carries **no text at all**, `contents.highlights` makes it a few tens of KB, and `contents.text` (full page text) makes it ~100 KB with individual pages in the tens of KB — after our 600-character cut the snippets total a few KB per search, which is why highlights are the default and full text is not asked for. Exa bills the three shapes the same: the base `/search` price covers the first 10 results **with** contents (their changelog: “Search with contents: $7 per 1k requests (10 results, text + highlights included)”); only results above 10 add $1 per 1k, and the separate `/contents` endpoint is $1 per 1k pages per content type. Quirk to remember: top-level `text: true` is **not** a `/search` parameter — the API ignores it with the warning `text is not a top-level /search parameter … Send it as contents.text`.
+**Snippets come from `contents.highlights`.** The provider asks for `{ contents: { highlights: true } }` and joins the passages Exa selected for each page, cutting the result to `EXA_SNIPPET_MAX_CHARS` = 600 characters (whitespace collapsed). For scale on a ~10-result query: an answer without `contents` is a couple of KB and carries **no text at all**, `contents.highlights` makes it a few tens of KB, and `contents.text` (full page text) makes it ~100 KB with individual pages in the tens of KB — after our 600-character cut the snippets total a few KB per search, which is why highlights are the default and full text is not asked for. Exa bills the three shapes the same: the base `/search` price covers the first 10 results **with** contents (their changelog: “Search with contents: $7 per 1k requests (10 results, text + highlights included)”); only results above 10 add $1 per 1k, and the separate `/contents` endpoint is $1 per 1k pages per content type. 
 
 ### Firecrawl
 

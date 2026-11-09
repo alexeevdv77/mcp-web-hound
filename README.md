@@ -1,37 +1,18 @@
 # MCP Web Hound
 
-[![npm version](https://img.shields.io/npm/v/mcp-web-hound.svg)](https://www.npmjs.com/package/mcp-web-hound)
-[![npm downloads](https://img.shields.io/npm/dm/mcp-web-hound.svg)](https://www.npmjs.com/package/mcp-web-hound)
 [![GitHub stars](https://img.shields.io/github/stars/alexeevdv77/mcp-web-hound?style=social)](https://github.com/alexeevdv77/mcp-web-hound)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > Unified MCP search tools for AI agents — abstracts providers, caching, reranking, and rate limits behind a few simple tools.
->
-> GitHub: <https://github.com/alexeevdv77/mcp-web-hound> · npm: <https://www.npmjs.com/package/mcp-web-hound>
 
-> **This is a fork, and its purpose is testing agent systems.** It is my own workbench: providers, thresholds and the configuration surface change here first, often without notice, and regressions are part of the deal. If you want a stable, supported release, use the original project — <https://github.com/ilgizar-valiullin/mcp-web-hound> (npm: <https://www.npmjs.com/package/mcp-web-hound>).
+> ⚠️ **This is a fork, and its purpose is testing agent systems.** It is my own workbench: providers, thresholds and the configuration surface change here first, often without notice, and regressions are part of the deal. If you want a stable, supported release, use the original project — <https://github.com/ilgizar-valiullin/mcp-web-hound> (npm: <https://www.npmjs.com/package/mcp-web-hound>).
 
-> ⚠️ **Work in progress.** Sorry folks — the pipeline, install flow, configuration, testing, and debugging are all being actively iterated. Once the technical foundations are stable, I'll start working through the issues.
-
-## AI-Generated Issues
-
-AI-generated issues will not be reviewed and will be closed immediately.
 
 ## Quick Start
 
 ```bash
-# Recommended: global install (single process, ~22MB cold, models included)
-npm i -g mcp-web-hound
-mcp-web-hound --help
-
-# Install straight from GitHub (prepare compiles dist/ and brings the model stack)
-npm i -g github:alexeevdv77/mcp-web-hound
-
-# Lean install: no ONNX stack, no semantic dedup / NLI signal
-npm i -g github:alexeevdv77/mcp-web-hound --omit=optional
-
-# Fallback: npx, no install needed (extra ~90MB relay process)
-npx mcp-web-hound --help
+# Install straight from this GitHub fork (add --omit=optional to skip ONNX model stack)
+npm i -g github:alexeevdv77/mcp-web-hound --install-links=true
 
 # Config is auto-created at ~/.config/mcp-web-hound/.env on first run.
 # Edit it via:
@@ -41,10 +22,7 @@ mcp-web-hound configure
 The GitHub install runs `prepare`, builds `dist/` and pre-installs the optional ONNX
 stack (`@xenova/transformers`) into the install prefix — that also sidesteps an npm 11 +
 Windows bug where extracting `protobufjs`'s bundled CLI tree makes npm roll back every
-optional dependency. If reify fails with `EPERM`/`ENOTEMPTY`, add `--install-links=true`;
-check `npm config get install-links` first, it may already be on. The npm 11
-`allowScripts` warning is informational — `prepare` and the native `better-sqlite3`
-build still run.
+optional dependency. `--install-links=true` used to prevent fails with `EPERM`/`ENOTEMPTY` on Windows. The npm 11 `allowScripts` warning is informational — `prepare` and the native `better-sqlite3` build still run.
 
 Model weights live in a shared cache, `~/.cache/huggingface/transformers-js`
 (`$HF_HOME/transformers-js` when `HF_HOME` is set; override with `MODEL_CACHE_DIR`), so
@@ -69,13 +47,11 @@ The heavy stack (SQLite + sqlite-vec, providers, ONNX models) lives in a private
 
 ## OpenCode Setup
 
-Recommended `~/.config/opencode/opencode.json` (global install):
+Recommended `~/.config/opencode/opencode.json` (global install, v2 config):
 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  // Optional: drop OpenCode's built-in search so this server is the only search path.
-  // Its providers always use their stock origins and can be blocked or unreachable.
   "websearch": false,
   "mcp": {
     "servers": {
@@ -88,18 +64,13 @@ Recommended `~/.config/opencode/opencode.json` (global install):
 }
 ```
 
-V2 has no `enabled` field for a server: a configured server connects by itself, and
-`"disabled": true` keeps it configured but disconnected.
+Optional `"websearch": false`: drop OpenCode's built-in search so this server is the only search path for agent. Version diff: V1 config need use `"enabled": true` field, in V2 logic inverted - `"disabled": true` disconnects mcp.
 
-Or via CLI:
+Or via CLI (built-in search stays on):
 
 ```bash
 opencode mcp add web_search -- mcp-web-hound
-```
-
-Fallback without install (costs an extra relay process):
-
-```bash
+# or fallback with original mcp
 opencode mcp add web_search -- npx.cmd -y mcp-web-hound
 ```
 
@@ -109,7 +80,7 @@ For other clients and advanced setup → see [Deployment Guide](docs/deployment-
 
 ## Provider Setup
 
-Use `npx mcp-web-hound configure` to set API keys. Startpage, DDG, Brave Web, and Bing work with zero config.
+Use `mcp-web-hound configure` to set API keys. Startpage, DDG, Brave Web, and Bing work with zero config.
 
 | Provider | Key Required | Tier | Rate Limit |
 |----------|-------------|------|------------|
@@ -122,7 +93,10 @@ Use `npx mcp-web-hound configure` to set API keys. Startpage, DDG, Brave Web, an
 | Exa | `EXA_API_KEY` | 3 | Trial |
 | Firecrawl | `FIRECRAWL_API_KEY` | 3 | Trial |
 
-Bing answers through plain scraping of `/search?q=` — no cookie session, no locale overrides, no market params. A headless-Chrome channel (query typed into Bing's box) is parked on the `bing-browser-mode` branch — see [docs/providers.md](docs/providers.md) for why it is not shipped.
+> ⚠️ Bing answers may be innacurate  — see [docs/providers.md](docs/providers.md) for detail.
+
+> ⚠️ OpenSearch use same system env names for built-in search keys, so if it statays on and system env used, agent may call both seach apis.
+
 
 ## Tools
 

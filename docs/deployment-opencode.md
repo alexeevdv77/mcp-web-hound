@@ -5,29 +5,18 @@
 - **Node.js** >= 20
 - **npm** (comes with Node.js)
 
-## Quick Install (global, recommended)
-
-One Node process per server (~70MB cold) instead of the npx relay chain
-(outer `px-cli` ~90MB + inner server). Distribution is still via npm.
-
-```bash
-npm i -g mcp-web-hound
-
-# Verify it works
-mcp-web-hound --help
-```
-
-## Quick Install (from Git)
+## Quick Install (from this Git fork)
 
 Installs from the GitHub repository, compiles `dist/` during `prepare` and pre-installs
 the optional ONNX stack into the install prefix:
 
 ```bash
-npm i -g github:alexeevdv77/mcp-web-hound
-mcp-web-hound models status
+# Install (add --omit=optional to skip ONNX model stack)
+npm i -g github:alexeevdv77/mcp-web-hound --install-links=true
 
-# Lean install: no ONNX stack (no semantic dedup, no NLI signal)
-npm i -g github:alexeevdv77/mcp-web-hound --omit=optional
+# Config is auto-created at ~/.config/mcp-web-hound/.env on first run.
+# Edit it via:
+mcp-web-hound configure
 ```
 
 The pre-install is what keeps the model stack in place: while extracting the optional
@@ -36,15 +25,24 @@ dependency. With a copy already present at the prefix, npm dedupes to it and nev
 extracts that tree. Skip it with `--omit=optional` or `MCP_SKIP_MODELS=1`.
 
 `npm warn tar TAR_ENTRY_ERROR … protobufjs\cli` lines may still print while npm inspects
-that tree during resolution. They are harmless now: the install keeps the stack, which
+that tree during resolution. They are harmless: the install keeps the stack, which
 `mcp-web-hound models status` confirms. Judge the install by that command, not by the
 warnings.
 
-If you hit `EPERM`/`ENOTEMPTY` while npm prepares the temporary clone, use
-`--install-links=true` or persist it once:
+The npm 11 `allowScripts` warning is informational — `prepare` and the native `better-sqlite3` build still run.
+
+`--install-links=true` used to prevent fails with `EPERM`/`ENOTEMPTY` on Windows. You can persist it once:
 
 ```bash
 npm config set install-links true
+```
+## Original NPM Install (global)
+
+```bash
+npm i -g mcp-web-hound
+
+# Verify it works
+mcp-web-hound --help
 ```
 
 ## Quick Install (npx, zero-install fallback)
